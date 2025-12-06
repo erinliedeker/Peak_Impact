@@ -16,10 +16,10 @@
     "@nuxt/ui": "^4.2.1",
     "@pinia/nuxt": "^0.11.3",
     "nuxt": "^4.2.1",
-    "pinia": "^3.0.4",
     "firebase": "^12.6.0",
     "firebase-admin": "^13.6.0",
     "nuxt-vuefire": "^1.1.0",
+    "pinia": "^3.0.4",
     "vuefire": "^3.2.2"
   },
   "devDependencies": {
