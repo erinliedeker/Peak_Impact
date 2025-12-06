@@ -1,6 +1,40 @@
 // --- Shared Data Types ---
 
 /**
+ * Defines the status of a specific volunteer for a specific event.
+ */
+export interface VolunteerAttendance {
+    volunteerId: number;
+    volunteerName: string; // Used for letter generation
+    signedUp: boolean;
+    checkInTime: string | null; // ISO format datetime
+    checkOutTime: string | null; // ISO format datetime
+    hoursVerified: boolean; // For the service hour verification letter
+    verificationLetterSent: boolean;
+}
+
+/**
+ * Update the ConnectEvent interface to include the attendance array.
+ */
+export interface ConnectEvent {
+    id: number;
+    title: string;
+    description: string;
+    organizationId: number;
+    organizationName: string;
+    location: GeoLocation;
+    date: string;
+    time: string;
+    category: 'PublicSafety' | 'Environment' | 'Youth' | 'Arts' | 'Social';
+    volunteersNeeded: number;
+    volunteersSignedUp: number;
+    isMicroProject: boolean;
+    suppliesNeeded: string[];
+    // NEW: Array to track all volunteers for the event
+    attendees: VolunteerAttendance[]; 
+}
+
+/**
  * Defines the geographic coordinates for an event or micro-project.
  */
 export interface GeoLocation {
