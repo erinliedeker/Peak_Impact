@@ -5,8 +5,8 @@ export default defineNuxtConfig({
     "@nuxt/ui", 
     "nuxt-vuefire",
     '@pinia/nuxt',
-     "nuxt-vuefire"
-    ],
+    'nuxt-vuefire'
+  ],
 
   devtools: {
     enabled: true,

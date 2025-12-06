@@ -8,9 +8,15 @@ rad.json
 *.g.xlf
 *.flf
 TestResults.xml
-# Dependency packages
-node_modules
-# Nuxt build folder
+
+### Nuxt / Node.js (New rules) ###
+
+# Dependencies
+node_modules/
+
+package-lock.json
+
+# Nuxt build directory (Dev) - This changes constantly, never commit it
 .nuxt/
 
 # Nuxt build directory (Production) - Don't commit build artifacts
