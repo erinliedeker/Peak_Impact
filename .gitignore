@@ -20,3 +20,10 @@ rad.json
 *.flf
 #Test results file
 TestResults.xml
+# Dependency packages
+node_modules
+# Nuxt build folder
+.nuxt/
+# NPM package lock file
+package-lock.json
+
