@@ -8,31 +8,10 @@ rad.json
 *.g.xlf
 *.flf
 TestResults.xml
-
-### Nuxt / Node.js (New rules) ###
-
-# Dependencies
-node_modules/
-
-# Nuxt build directory (Dev) - This changes constantly, never commit it
+# Dependency packages
+node_modules
+# Nuxt build folder
 .nuxt/
+# NPM package lock file
+package-lock.json
 
-# Nuxt build directory (Production) - Don't commit build artifacts
-.output/
-dist/
-
-# Environment variables - SECURITY RISK if committed
-.env
-.env.production
-.env.development
-.env.local
-
-# Logs
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-
-# OS metadata
-.DS_Store
-Thumbs.db

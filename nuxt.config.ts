@@ -1,6 +1,11 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
-  modules: ["@nuxt/eslint", "@nuxt/ui", "nuxt-vuefire"],
+  modules: [
+    "@nuxt/eslint", 
+    "@nuxt/ui", 
+    "nuxt-vuefire",
+    '@pinia/nuxt',
+  ],
 
   devtools: {
     enabled: true,
