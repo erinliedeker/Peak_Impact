@@ -1,7 +1,7 @@
 <template>
   <aside class="sidebar">
     <div class="sidebar-header">
-      <h1 class="logo">Connect COS 🏔️</h1>
+      <h1 class="logo">Peak Impact 🏔️</h1>
     </div>
 
     <nav class="nav-links">
@@ -41,21 +41,6 @@
       </div>
     </nav>
 
-    <div class="sidebar-footer">
-      <div v-if="auth.isLoggedIn" class="user-info">
-        <div class="avatar-circle">
-          {{ auth.userName.charAt(0) }}
-        </div>
-        <div class="user-details">
-          <p class="user-name">{{ auth.userName }}</p>
-          <button @click="handleLogout" class="logout-btn">Log Out</button>
-        </div>
-      </div>
-      
-      <div v-else class="login-prompt">
-        <NuxtLink to="/login" class="login-btn">Log In</NuxtLink>
-      </div>
-    </div>
   </aside>
 </template>
 
