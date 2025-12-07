@@ -38,7 +38,7 @@ export default defineNuxtConfig({
       apiKey: "AIzaSyCMfaQ7L26UYE5dX4fX9CWAo0grrXwSNmY",
       authDomain: "peak-impact-67fc1.firebaseapp.com",
       projectId: "peak-impact-67fc1",
-      storageBucket: "peak-impact-67fc1.firebasestorage.app",
+      storageBucket: "peak-impact-67fc1.appspot.com",
       messagingSenderId: "64453712256",
       appId: "1:64453712256:web:02e71626e1175420450965",
       measurementId: "G-G9ZF39NCRG",

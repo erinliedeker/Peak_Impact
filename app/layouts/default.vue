@@ -27,9 +27,8 @@
 }
 
 .sidebar-wrapper {
-  /* This ensures the wrapper stays 309px and handles its own scrolling */
   overflow-y: auto;
-  border-right: 1px solid var(--color-border); /* Optional: visual separation */
+  border-right: 1px solid var(--color-border);
 }
 
 .main-column {

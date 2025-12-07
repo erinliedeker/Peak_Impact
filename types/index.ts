@@ -16,3 +16,8 @@ export type {
   GroupSummary,
   ReportEventData
 } from './reports'
+
+export type {
+  Post,
+  Comment
+} from './post.d'

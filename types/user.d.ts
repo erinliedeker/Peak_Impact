@@ -3,7 +3,8 @@
  * This is the data we expect to receive from the Connect COS backend upon login.
  */
 export interface UserProfile {
-  id: number;
+  organizationId: string | null;
+  id: string;
   name: string;
   email: string;
   userType: 'Resident' | 'OrgAdmin' | 'Student'; // Key for authorization and permissions
