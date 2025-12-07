@@ -1,16 +1,7 @@
 <template>
   <div class="feed-page">
-    <!-- Sidebar -->
     <aside class="feed-sidebar">
-      <div class="sidebar-card">
-        <h3 class="sidebar-title">Profile</h3>
-        <div class="profile-preview">
-          <div class="profile-avatar">{{ userInitials }}</div>
-          <p class="profile-name">{{ authStore.profile?.name || 'User' }}</p>
-          <p class="profile-type">{{ authStore.profile?.userType || 'Volunteer' }}</p>
-        </div>
-      </div>
-
+      
       <div class="sidebar-card">
         <h3 class="sidebar-title">Impact Stats</h3>
         <div class="stats-list">
@@ -33,9 +24,17 @@
         <h3 class="sidebar-title">Your Organizations</h3>
         <div class="org-list-sidebar">
           <button 
+            @click="clearFilters('org')"
+            class="org-btn"
+            :class="{ active: !selectedOrg && !selectedGroup }"
+          >
+            All Posts (Global Feed)
+          </button>
+
+          <button 
             v-for="org in organizations" 
             :key="org.id"
-            @click="selectedOrg = org"
+            @click="selectOrg(org)"
             class="org-btn"
             :class="{ active: selectedOrg?.id === org.id }"
           >
@@ -43,11 +42,24 @@
           </button>
         </div>
       </div>
-    </aside>
 
-    <!-- Main Feed -->
+      <div v-if="joinedGroups.length > 0" class="sidebar-card">
+        <h3 class="sidebar-title">Your Groups</h3>
+        <div class="org-list-sidebar">
+          <button 
+            v-for="group in joinedGroups" 
+            :key="group.id"
+            @click="selectGroup(group)"
+            class="org-btn"
+            :class="{ active: selectedGroup?.id === group.id }"
+          >
+            {{ group.name }}
+          </button>
+        </div>
+      </div>
+      </aside>
+
     <main class="feed-main">
-      <!-- Create Post Section -->
       <div class="create-post">
         <div v-if="!expandPostForm" class="post-header">
           <div class="user-avatar-small">{{ userInitials }}</div>
@@ -76,7 +88,7 @@
                 <option v-for="org in organizations" :key="org.id" :value="org.id">
                   {{ org.name }}
                 </option>
-              </select>
+                </select>
             </div>
             <div class="post-actions">
               <button @click="expandPostForm = false" class="btn-cancel">Cancel</button>
@@ -88,7 +100,6 @@
         </div>
       </div>
 
-      <!-- Posts Feed -->
       <div class="posts-container">
         <div v-if="feedPosts.length === 0" class="empty-feed">
           <p>No posts yet. Be the first to share your volunteer story! 🌟</p>
@@ -99,7 +110,6 @@
           :key="post.id"
           class="post-card"
         >
-          <!-- Post Header -->
           <div class="post-header-card">
             <div class="post-user-info">
               <div class="post-avatar">{{ getInitials(post.authorName) }}</div>
@@ -107,24 +117,20 @@
                 <p class="post-author">{{ post.authorName }}</p>
                 <p class="post-time">{{ formatTime(post.timestamp) }}</p>
                 <p v-if="post.organizationName" class="post-org">@ {{ post.organizationName }}</p>
+                <p v-else-if="post.groupName" class="post-org"># {{ post.groupName }}</p>
               </div>
             </div>
           </div>
 
-          <!-- Post Content -->
           <div class="post-content">
             <p class="post-text">{{ post.text }}</p>
-            
-            <!-- Photo display removed: Firebase Storage not available -->
           </div>
 
-          <!-- Post Stats -->
           <div class="post-stats">
             <span>❤️ {{ post.likes.length }} likes</span>
             <span>💬 {{ post.commentsCount }} comments</span>
           </div>
 
-          <!-- Post Actions -->
           <div class="post-actions-row">
             <button 
               class="action-btn" 
@@ -137,9 +143,7 @@
             <button class="action-btn" @click="copyShareLink(post.id)">↗️ Share</button>
           </div>
 
-          <!-- Comments Section -->
           <div v-if="showComments[post.id]" class="comments-section">
-            <!-- Comment Input -->
             <div class="comment-input-wrapper">
               <div class="comment-avatar">{{ userInitials }}</div>
               <input
@@ -158,7 +162,6 @@
               </button>
             </div>
 
-            <!-- Comments List -->
             <div v-if="postComments[post.id]?.length" class="comments-list">
               <div v-for="comment in postComments[post.id]" :key="comment.id" class="comment-item">
                 <div class="comment-avatar-small">{{ getInitials(comment.authorName) }}</div>
@@ -177,7 +180,6 @@
         </div>
       </div>
 
-      <!-- Loading -->
       <div v-if="loading" class="loading">
         Loading posts...
       </div>
@@ -186,24 +188,28 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onUnmounted } from 'vue'
+import { ref, computed, watch, onUnmounted, onMounted } from 'vue' 
 import { collection, query, orderBy, onSnapshot, type Unsubscribe } from 'firebase/firestore'
 import { useAuthStore } from '../../stores/auth'
 import { useFeed } from '../../composables/useFeed'
 import { useCollection } from 'vuefire'
 import type { Post } from '../../types'
+import { useGroupsStore } from '../../stores/groups' 
 
 const authStore = useAuthStore()
-const { createPost, toggleLike, addComment, getAllPostsQuery, getOrgPostsQuery } = useFeed()
+const groupsStore = useGroupsStore()
+
+const { createPost, toggleLike, addComment, getAllPostsQuery, getOrgPostsQuery, getGroupPostsQuery } = useFeed()
 const db = useFirestore()
 
 // State
 const loading = ref(false)
 const expandPostForm = ref(false)
 const newPostText = ref('')
-// Photo upload state removed: Firebase Storage not available
-const postOrg = ref('')
-const selectedOrg = ref<any>(null)
+const postOrg = ref('') // Used for creating a post
+const selectedOrg = ref<any>(null) // Used for filtering the feed
+const selectedGroup = ref<any>(null) // Used for filtering the feed
+
 const userEventCount = ref(0)
 const userHours = ref(0)
 
@@ -220,11 +226,27 @@ const organizations = ref([
   { id: 'org-3', name: 'Youth Leadership Initiative' }
 ])
 
+const joinedGroups = computed(() => {
+  const joinedGroupIds = authStore.profile?.joinedGroups || [];
+  return groupsStore.allNeighborhoodGroups.filter(group => 
+    joinedGroupIds.includes(String(group.id))
+  ).map(g => ({ id: g.id, name: g.name }));
+});
+
+
 // Real-time posts from Firestore
 const postsQuery = computed(() => {
+  // 1. Check for Organization Filter
   if (selectedOrg.value?.id) {
     return getOrgPostsQuery(selectedOrg.value.id)
   }
+  
+  // 2. Check for Group Filter
+  if (selectedGroup.value?.id) {
+    return getGroupPostsQuery(selectedGroup.value.id) 
+  }
+  
+  // 3. Default to Global Feed
   return getAllPostsQuery()
 })
 
@@ -239,9 +261,10 @@ const feedPosts = computed<Post[]>(() => {
       authorId: doc.authorId || '',
       authorName: doc.authorName || 'User',
       text: doc.text || '',
-      // photoUrl removed: Firebase Storage not available
       organizationId: doc.organizationId || null,
       organizationName: doc.organizationName || null,
+      groupId: doc.groupId || null,
+      groupName: doc.groupName || null,
       timestamp,
       likes: Array.isArray(doc.likes) ? doc.likes : [],
       commentsCount: doc.commentsCount || 0
@@ -259,8 +282,30 @@ const userInitials = computed(() => {
     .toUpperCase()
 })
 
-// Handle photo upload
-// handlePhotoUpload removed: Firebase Storage not available
+
+// Select/Filter Functions for Mutual Exclusion
+function selectOrg(org: any) {
+  selectedOrg.value = (selectedOrg.value?.id === org.id) ? null : org
+  selectedGroup.value = null // Clear group filter
+}
+
+function selectGroup(group: any) {
+  selectedGroup.value = (selectedGroup.value?.id === group.id) ? null : group
+  selectedOrg.value = null // Clear org filter
+}
+
+function clearFilters() {
+  selectedOrg.value = null
+  selectedGroup.value = null
+}
+
+// On Mount to load groups store data
+onMounted(() => {
+  if (groupsStore.allNeighborhoodGroups.length === 0) {
+    groupsStore.fetchNeighborhoodGroups();
+  }
+})
+
 
 // Create new post
 async function handleCreatePost() {
@@ -282,7 +327,6 @@ async function handleCreatePost() {
 
     // Reset form
     newPostText.value = ''
-    // Photo upload state reset removed
     postOrg.value = ''
     expandPostForm.value = false
   } catch (err: any) {
@@ -338,9 +382,6 @@ function getInitials(name: string): string {
     .join('')
     .toUpperCase()
 }
-
-// Clear photo preview when photo is removed
-// clearPhoto removed: Firebase Storage not available
 
 // Copy share link to clipboard
 function copyShareLink(postId: string) {
@@ -404,6 +445,8 @@ userHours.value = 42.5
 </script>
 
 <style scoped>
+/* All existing styles are preserved */
+
 .feed-page {
   height: 100%;
   display: grid;
@@ -441,6 +484,7 @@ userHours.value = 42.5
   letter-spacing: 0.5px;
 }
 
+/* .profile-preview styles are now vestigial but kept just in case you use them elsewhere */
 .profile-preview {
   display: flex;
   flex-direction: column;
@@ -474,6 +518,7 @@ userHours.value = 42.5
   color: #64748b;
   margin: 0;
 }
+/* End vestigial styles */
 
 .stats-list {
   display: flex;
@@ -916,6 +961,7 @@ userHours.value = 42.5
   font-weight: 700;
   font-size: 0.9rem;
   flex-shrink: 0;
+  margin-left: 15px;
 }
 
 .comment-input {
@@ -943,6 +989,7 @@ userHours.value = 42.5
   cursor: pointer;
   transition: all 0.2s;
   font-size: 0.9rem;
+  margin-right: 15px;
 }
 
 .comment-submit-btn:hover:not(:disabled) {
@@ -978,6 +1025,7 @@ userHours.value = 42.5
   font-weight: 600;
   font-size: 0.75rem;
   flex-shrink: 0;
+  margin-left: 15px;
 }
 
 .comment-bubble {
@@ -985,6 +1033,8 @@ userHours.value = 42.5
   background: #f8fafc;
   border-radius: 12px;
   padding: 0.75rem 1rem;
+  margin-right:15px;
+  margin-bottom: 10px;
 }
 
 .comment-header {
@@ -1034,12 +1084,17 @@ userHours.value = 42.5
 
   .feed-sidebar {
     position: static;
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    display: flex; 
+    flex-direction: column; 
+    
+    max-height: 50vh; 
+    overflow-y: auto; 
+    padding: 0 1rem; 
   }
 
   .sidebar-card {
     padding: 1rem;
+    flex-shrink: 0; 
   }
 }
 
@@ -1051,6 +1106,8 @@ userHours.value = 42.5
 
   .feed-sidebar {
     grid-template-columns: 1fr;
+    max-height: 40vh; 
+    padding: 0 0; 
   }
 
   .post-actions-row {
