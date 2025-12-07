@@ -84,6 +84,7 @@ const formatType = (type) => type.replace(/([A-Z])/g, ' $1').trim();
   display: grid;
   grid-template-columns: 350px 1fr;
   gap: 2rem;
+  padding: 1.5rem;
 }
 
 @media (max-width: 768px) {
