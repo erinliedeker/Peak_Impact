@@ -4,9 +4,24 @@
 
     <div class="card-content">
       
-      <div v-if="matchScore > 0" class="score-badge" :class="scoreClass">
-        <Icon name="heroicons:fire-solid" size="0.9rem" />
-        {{ matchScore }}% Match
+      <div v-if="matchScore > 0" class="score-badge-container">
+        <div class="score-badge" :class="scoreClass">
+          <Icon name="heroicons:fire-solid" size="0.9rem" />
+          {{ matchScore }}% Match
+        </div>
+
+        <div class="match-tooltip" v-if="matchingInterests.length > 0">
+          <strong>Why?</strong>
+          <p class="tooltip-sub">You both care about:</p>
+          <ul class="interest-list">
+            <li v-for="tag in visibleInterests" :key="tag">
+              • {{ tag }}
+            </li>
+            <li v-if="remainingCount > 0" class="more-count">
+              + {{ remainingCount }} more
+            </li>
+          </ul>
+        </div>
       </div>
       <NuxtLink :to="`/organizations/${org.id}`" class="org-avatar">
         {{ getInitials(org.name) }}
@@ -48,16 +63,26 @@ import { computed } from 'vue';
 
 const props = defineProps({
   org: { type: Object, required: true },
-  matchScore: { type: Number, required: true, default: 0 }
+  matchScore: { type: Number, required: true, default: 0 },
+  // 🌟 NEW: Receive the list of matching tags
+  matchingInterests: { type: Array, required: false, default: () => [] }
 });
 
 const orgStore = useOrgStore();
 
-// 🌟 NEW: Determine Color based on Score 🌟
+// 🌟 NEW: Logic to prevent tooltip from getting too tall
+const visibleInterests = computed(() => {
+  return props.matchingInterests.slice(0, 3); // Show max 3
+});
+
+const remainingCount = computed(() => {
+  return props.matchingInterests.length - 3;
+});
+
 const scoreClass = computed(() => {
-  if (props.matchScore >= 75) return 'high-match';   // Green
-  if (props.matchScore >= 40) return 'medium-match'; // Orange
-  return 'low-match';                                // Gray/Blue
+  if (props.matchScore >= 75) return 'high-match';   
+  if (props.matchScore >= 40) return 'medium-match'; 
+  return 'low-match';                                
 });
 
 const isFollowing = computed(() => orgStore.followedOrganizations.includes(props.org.id));
@@ -88,78 +113,126 @@ const formatType = (type) => type.replace(/([A-Z])/g, ' $1').trim();
   background: white;
   border: 1px solid var(--color-border);
   border-radius: 12px;
-  overflow: hidden;
+  overflow: visible; /* Changed from hidden to visible so tooltip can pop out if needed */
   transition: transform 0.2s, box-shadow 0.2s;
   display: flex;
   flex-direction: column;
+  position: relative;
 }
 
 .org-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  z-index: 5; /* Ensure hovered card is on top */
 }
 
 .card-banner {
   height: 60px;
   background-color: #cbd5e0;
+  border-radius: 12px 12px 0 0; /* Add radius here since overflow is visible */
 }
 
-.card-banner.nonprofit {
-  background-color: var(--color-secondary);
-}
+.card-banner.nonprofit { background-color: var(--color-secondary); }
+.card-banner.citydept { background-color: var(--color-primary); }
+.card-banner.neighborhoodgroup { background-color: var(--color-accent); }
 
-.card-banner.citydept {
-  background-color: var(--color-primary);
-}
+/* --- 🌟 SCORE BADGE & TOOLTIP STYLES --- */
 
-.card-banner.neighborhoodgroup {
-  background-color: var(--color-accent);
-}
-
-.score-badge {
+.score-badge-container {
   position: absolute;
   top: 1.5rem;
   right: 1.5rem;
+  z-index: 10;
+  cursor: help;
+}
+
+.score-badge {
   padding: 4px 10px;
   border-radius: 6px;
   font-size: 0.8rem;
   font-weight: 700;
-  color: white; /* Text is always white */
+  color: white;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
   display: flex;
   align-items: center;
   gap: 4px;
 }
 
-/* Color Variants */
-.high-match {
-  background-color: #38a169; /* Green for > 75% */
+.high-match { background-color: #38a169; }
+.medium-match { background-color: #dd6b20; }
+.low-match { background-color: #718096; }
+
+/* The Tooltip Box */
+.match-tooltip {
+  visibility: hidden;
+  opacity: 0;
+  position: absolute;
+  top: 110%; /* Just below the badge */
+  right: 0;
+  width: 140px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 0.75rem;
+  color: #2d3748;
+  transform: translateY(-5px);
+  transition: all 0.2s ease-in-out;
+  pointer-events: none; /* Let clicks pass through if invisible */
 }
 
-.medium-match {
-  background-color: #dd6b20; /* Orange for 40% - 74% */
+/* Hover Interaction */
+.score-badge-container:hover .match-tooltip {
+  visibility: visible;
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
 }
 
-.low-match {
-  background-color: #718096; /* Gray for < 40% */
+.match-tooltip strong {
+  display: block;
+  color: #3182ce;
+  margin-bottom: 2px;
 }
 
-.score-badge .icon {
-  font-size: 1rem;
-  line-height: 1;
+.tooltip-sub {
+  margin: 0;
+  margin-bottom: 4px;
+  color: #718096;
+  font-size: 0.7rem;
 }
 
+.interest-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  text-align: left;
+}
+
+.interest-list li {
+  margin-bottom: 2px;
+  line-height: 1.3;
+  font-weight: 500;
+}
+
+.more-count {
+  font-style: italic;
+  color: #718096;
+  margin-top: 4px;
+}
+
+/* --- END SCORE STYLES --- */
 
 .card-content {
   padding: 1.5rem;
   padding-top: 0;
-  position: relative; /* Essential for positioning the score-badge */
+  position: relative; 
   display: flex;
   flex-direction: column;
   flex-grow: 1;
 }
 
-/* Updated Avatar Style to be clickable */
 .org-avatar {
   width: 64px;
   height: 64px;
@@ -176,18 +249,12 @@ const formatType = (type) => type.replace(/([A-Z])/g, ' $1').trim();
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   font-size: 1.2rem;
   text-decoration: none;
-  /* Removes link underline */
   transition: opacity 0.2s;
 }
 
-.org-avatar:hover {
-  opacity: 0.9;
-}
+.org-avatar:hover { opacity: 0.9; }
 
-/* Updated Name Link Style */
-.name-link {
-  text-decoration: none;
-}
+.name-link { text-decoration: none; }
 
 .org-name {
   font-size: 1.1rem;
@@ -197,7 +264,6 @@ const formatType = (type) => type.replace(/([A-Z])/g, ' $1').trim();
   transition: color 0.2s;
 }
 
-/* Hover effect on name */
 .name-link:hover .org-name {
   color: var(--color-primary);
   text-decoration: underline;
@@ -228,55 +294,17 @@ const formatType = (type) => type.replace(/([A-Z])/g, ' $1').trim();
   color: var(--color-text-sub);
 }
 
-.follow-btn {
-  width: 100%;
-  padding: 10px;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  border: 1px solid var(--color-primary);
-  background: white;
-  color: var(--color-primary);
-}
-
-.follow-btn:hover {
-  background: #ebf8ff;
-}
-
-.follow-btn.active {
-  background: var(--color-primary);
-  color: white;
-}
-
-.org-desc {
-  font-size: 0.9rem;
-  color: var(--color-text-sub);
-  line-height: 1.5;
-  margin-bottom: 1.5rem;
-  flex-grow: 1;
-}
-
-.org-meta {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 1.5rem;
-  font-size: 0.8rem;
-  color: var(--color-text-sub);
-}
-
 .button-group {
   display: flex;
-  gap: 8px; /* Space between buttons */
+  gap: 8px;
   margin-top: auto; 
 }
 
-/* Base style for the new icon buttons */
 .icon-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 42px; /* Fixed square size */
+  width: 42px;
   height: 42px;
   border-radius: 8px;
   cursor: pointer;
@@ -291,25 +319,22 @@ const formatType = (type) => type.replace(/([A-Z])/g, ' $1').trim();
   box-shadow: 0 2px 5px rgba(0,0,0,0.05);
 }
 
-/* Instagram specific hover colors */
 .instagram-btn:hover {
-  color: #C13584; /* Instagram Brand Color */
+  color: #C13584; 
   border-color: #C13584;
   background: #fdf2f8;
 }
 
-/* Google specific hover colors */
 .google-btn:hover {
-  color: #4285F4; /* Google Blue */
+  color: #4285F4;
   border-color: #4285F4;
   background: #eff6ff;
 }
 
-/* The Follow button takes up remaining space */
 .follow-btn {
   flex-grow: 1;
-  padding: 0 16px; /* Horizontal padding only */
-  height: 42px; /* Match height of icon buttons */
+  padding: 0 16px;
+  height: 42px;
   border-radius: 8px;
   font-weight: 600;
   cursor: pointer;
@@ -317,15 +342,8 @@ const formatType = (type) => type.replace(/([A-Z])/g, ' $1').trim();
   border: 1px solid var(--color-primary);
   background: white;
   color: var(--color-primary);
-  /* distinct from icon buttons */
 }
 
-.follow-btn:hover {
-  background: #ebf8ff;
-}
-
-.follow-btn.active {
-  background: var(--color-primary);
-  color: white;
-}
+.follow-btn:hover { background: #ebf8ff; }
+.follow-btn.active { background: var(--color-primary); color: white; }
 </style>

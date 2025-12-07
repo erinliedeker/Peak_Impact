@@ -1,22 +1,18 @@
 <template>
   <div class="orgs-page">
-    
+
     <header class="page-header">
       <div class="header-content">
         <h1>Local Organizations</h1>
         <p>Discover and follow groups making an impact in Colorado Springs.</p>
       </div>
-      
+
       <div class="controls">
         <div class="search-box">
           <span class="icon">🔍</span>
-          <input 
-            v-model="searchQuery" 
-            type="text" 
-            placeholder="Find a group..."
-          >
+          <input v-model="searchQuery" type="text" placeholder="Find a group...">
         </div>
-        
+
         <select v-model="selectedType" class="type-filter">
           <option value="All">All Types</option>
           <option value="NonProfit">Non-Profits</option>
@@ -31,17 +27,14 @@
     </div>
 
     <div v-else-if="error" class="status-message error-box">
-        <p>🔴 {{ error }}</p>
-        <button @click="fetchOrganizations('')">Try Again</button>
+      <p>🔴 {{ error }}</p>
+      <button @click="fetchOrganizations('')">Try Again</button>
     </div>
 
     <div v-else class="org-grid">
-      <OrgCard 
-        v-for="item in filteredOrgs" 
-        :key="item.org.id" 
-        :org="item.org" 
-        :match-score="item.score" />
-      
+      <OrgCard v-for="item in filteredOrgs" :key="item.org.id" :org="item.org" :match-score="item.score"
+        :matching-interests="item.matchedInterests" />
+
       <div v-if="filteredOrgs.length === 0" class="empty-state">
         <p>No organizations found matching your search ({{ allOrganizations.length }} total loaded).</p>
         <button @click="resetFilters" class="reset-btn">Clear Filters</button>
@@ -59,20 +52,20 @@ import { useOrgStore } from '~~/stores/orgs'
 // Store Setup
 const orgStore = useOrgStore()
 const { recommendedOrgs, allOrganizations, isLoading, error } = storeToRefs(orgStore)
-const { fetchOrganizations } = orgStore 
+const { fetchOrganizations } = orgStore
 
 // Local State for Filtering
 const searchQuery = ref('')
 const selectedType = ref('All')
 
 onMounted(() => {
-    fetchOrganizations("") 
+  fetchOrganizations("")
 })
 
 // Filter Logic: Now works on the list of { org, score } objects
 const filteredOrgs = computed(() => {
   // 🌟 CHANGE 1: Start with the recommended list of { org, score } objects
-  let list = recommendedOrgs.value; 
+  let list = recommendedOrgs.value;
 
   // Filter by Type
   if (selectedType.value !== 'All') {
@@ -84,8 +77,8 @@ const filteredOrgs = computed(() => {
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase();
     // Note: We now filter on item.org.name/description
-    list = list.filter(item => 
-      item.org.name.toLowerCase().includes(query) || 
+    list = list.filter(item =>
+      item.org.name.toLowerCase().includes(query) ||
       item.org.description.toLowerCase().includes(query)
     );
   }
@@ -176,13 +169,13 @@ const resetFilters = () => {
 }
 
 .error-box {
-    margin: 2rem 0;
-    padding: 1rem;
-    border-radius: 8px;
-    color: #E53E3E;
-    background-color: #FED7D7;
-    border: 1px solid #E53E3E;
-    text-align: center;
+  margin: 2rem 0;
+  padding: 1rem;
+  border-radius: 8px;
+  color: #E53E3E;
+  background-color: #FED7D7;
+  border: 1px solid #E53E3E;
+  text-align: center;
 }
 
 .empty-state {

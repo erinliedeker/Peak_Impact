@@ -63,14 +63,17 @@ export const useOrgStore = defineStore("orgs", {
 
     recommendedOrgs: (state) => {
       const authStore = useAuthStore();
-      // 1. Get User Interests
       const userInterests = authStore.profile?.interests || [];
       const totalUserInterests = userInterests.length;
 
-      // If user has no interests, return 0 score for everyone
+      // If user has no interests, return 0 score
       if (totalUserInterests === 0) {
         return state.allOrganizations
-          .map((org) => ({ org, score: 0 }))
+          .map((org) => ({ 
+            org, 
+            score: 0, 
+            matchedInterests: [] // <--- Added empty array
+          }))
           .sort((a, b) => a.org.name.localeCompare(b.org.name));
       }
 
@@ -78,22 +81,27 @@ export const useOrgStore = defineStore("orgs", {
         .map((org) => {
           const orgInterests = org.interests || [];
 
-          // 2. Count Matches
-          const matchCount = orgInterests.filter((tag) =>
+          // 1. Get the actual matching tags
+          const matchedInterests = orgInterests.filter((tag) =>
             userInterests.includes(tag)
-          ).length;
+          );
 
-          // 3. Calculate Percentage (0 to 100)
-          // Logic: "How much of 'You' is covered by this Org?"
+          // 2. Count Matches
+          const matchCount = matchedInterests.length;
+
+          // 3. Calculate Percentage
           let percentage = 0;
           if (totalUserInterests > 0) {
             percentage = Math.round((matchCount / totalUserInterests) * 100);
           }
 
-          return { org, score: percentage };
+          return { 
+            org, 
+            score: percentage, 
+            matchedInterests // <--- Return the specific tags here
+          };
         })
         .sort((a, b) => {
-          // Sort by Percentage Score (High to Low)
           if (b.score !== a.score) {
             return b.score - a.score;
           }
