@@ -34,7 +34,7 @@ const props = defineProps({
 
 <style scoped>
 .event-list {
-  max-height: 360px;
+  min-height: 360px;
   overflow-y: auto;
   padding: 8px;
   display: flex;
