@@ -95,10 +95,10 @@ const resetFilters = () => {
 .orgs-page {
   width: 100%;
   height: 100%;
+  overflow-y: scroll;;
 }
 
 .page-header {
-  margin-bottom: 2rem;
   background: white;
   padding: 2rem;
   border-bottom: 1px solid var(--color-border, #e2e8f0);
@@ -156,7 +156,7 @@ const resetFilters = () => {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 1.5rem;
-  padding: 0rem 1.5rem;
+  padding: 1.5rem;
 }
 
 /* Status and Loading */
