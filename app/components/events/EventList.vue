@@ -8,7 +8,7 @@
         :key="event.id"
         :class="['event-item', { 'selected': event.id === activeId}]"
         role="listitem"
-        @click="onClick(event)"
+        @click="$emit('select', event); onClick(event)"
       >
         <div class="avatar" :class="getCategoryClass(event.category)">
           <Icon :name="getCategoryIcon(event.category)" class="category-icon" />
@@ -36,7 +36,6 @@ const activeId = computed(() => internalSelected.value)
 
 function onClick(event) {
   internalSelected.value = event.id
-  $emit('select', event)
 }
 
 // --- Category Icon Logic ---
