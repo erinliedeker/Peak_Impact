@@ -450,10 +450,13 @@ function formatStatus(status: string) {
 // ⭐️ CHECK IN ACTION
 async function handleCheckIn(volunteer: Attendee) {
   if (!activeEvent.value) return;
+  console.log("A")
 
   try {
     // 1. Call Store (which calls Firebase)
     await eventStore.checkInVolunteer(activeEvent.value.id, volunteer.uid);
+      console.log("B")
+
 
     // 2. Optimistic Update: Update local list immediately
     const target = eventAttendees.value.find(a => a.uid === volunteer.uid);

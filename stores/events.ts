@@ -299,42 +299,77 @@ export const useEventsStore = defineStore('events', {
             }
         },
 
-        /**
-         * Org Admin action to check-in a volunteer.
-         */
-        async checkInVolunteer(eventId: string, volunteerId: string) {
-            const event = this.allEvents.find(e => e.id === eventId);
+        async checkOutVolunteer(eventId: string, volunteerId: string) {
+            const event = await EventService.getById(eventId);
             if (!event) return;
 
+            // 2. Find the volunteer record
             const record = event.attendees.find(a => a.volunteerId === volunteerId);
 
-            if (record && !record.checkInTime) {
-                // 1. Update local state
-                record.checkInTime = new Date().toISOString();
+            // 3. Verify they are eligible for check-out
+            if (record && record.checkInTime && !record.checkOutTime) {
                 
-                // 2. Persist to Firestore
-                console.log(`Saving Check-In for ${volunteerId}...`);
-                await EventService.updateAttendees(String(eventId), event.attendees);
+                // 4. Update the Local Object (Optimistic Update)
+                record.checkOutTime = new Date().toISOString();
+                record.status = 'completed'; // Ensure status matches UI expectations
+                record.hoursVerified = true; 
+
+                try {
+                    console.log(`Saving Check-Out for ${volunteerId}...`);
+                    
+                    // 5. ⭐️ CRITICAL FIX: Strip Vue Proxies 
+                    // Firestore cannot handle Vue's reactive "Proxy" objects reliably.
+                    // We create a raw, clean copy of the array to send to the DB.
+                    const cleanAttendees = event.attendees.map(a => toRaw(a));
+
+                    // 6. Send the CLEAN data to Firestore
+                    await EventService.updateAttendees(String(eventId), cleanAttendees);
+                    
+                    console.log("Save confirmed.");
+                    
+                    // ❌ DO NOT CALL fetchEventAttendees HERE
+                    // If you fetch now, you might get old data. Trust the local update.
+
+                } catch (error) {
+                    console.error("Save failed:", error);
+                    // Revert local state if DB write fails
+                    record.checkOutTime = null; 
+                    record.status = 'checked-in';
+                    record.hoursVerified = false;
+                    throw error; // Throw so the component knows it failed
+                }
             }
         },
 
-        /**
-         * Org Admin action to check-out a volunteer.
-         */
-        async checkOutVolunteer(eventId: string, volunteerId: string) {
-            const event = this.allEvents.find(e => e.id === eventId);
+        async checkInVolunteer(eventId: string, volunteerId: string) {
+            const event = await EventService.getById(eventId);
             if (!event) return;
 
             const record = event.attendees.find(a => a.volunteerId === volunteerId);
 
-            if (record && record.checkInTime && !record.checkOutTime) {
-                // 1. Update local state
-                record.checkOutTime = new Date().toISOString();
-                record.hoursVerified = true; 
-                
-                // 2. Persist to Firestore
-                console.log(`Saving Check-Out for ${volunteerId}...`);
-                await EventService.updateAttendees(String(eventId), event.attendees);
+            console.log(1)
+
+            if (record && !record.checkInTime) {
+                // Optimistic Update
+                record.checkInTime = new Date().toISOString();
+                record.status = 'checked-in';
+
+                console.log(2)
+
+                try {
+                    // Create clean copy
+                    const cleanAttendees = event.attendees.map(a => toRaw(a));
+                    console.log(3)
+                    
+                    // Save to DB
+                    await EventService.updateAttendees(String(eventId), cleanAttendees);
+                } catch (error) {
+                    console.error("Check-in failed", error);
+                    record.checkInTime = null; // Revert
+                    record.status = 'registered';
+                    console.log(4)
+                    throw error;
+                }
             }
         },
 
