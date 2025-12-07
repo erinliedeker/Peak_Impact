@@ -108,6 +108,10 @@ import { ref } from 'vue'
 import { createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup } from 'firebase/auth'
 import { doc, setDoc, getDoc, addDoc, collection } from 'firebase/firestore' // Added addDoc/collection
 
+definePageMeta({
+  layout: false 
+})
+
 const auth = useFirebaseAuth()
 const db = useFirestore()
 const router = useRouter()
