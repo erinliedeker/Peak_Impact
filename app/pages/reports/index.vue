@@ -1,13 +1,19 @@
 <template>
   <div class="reports-page">
+    <!-- Loading State -->
+    <div v-if="isLoading" class="loading-container">
+      <Icon name="heroicons:arrow-path" class="spinner" size="3rem" />
+      <p>Loading reports data...</p>
+    </div>
+
     <!-- Page Header -->
-    <div class="page-header">
+    <div v-else class="page-header">
       <h1>Reports & Analytics</h1>
       <p>Track volunteer hours, generate reports, and analyze program impact</p>
     </div>
 
     <!-- Navigation Tabs -->
-    <div class="tabs-container">
+    <div v-if="!isLoading" class="tabs-container">
       <button 
         v-for="tab in ['overview', 'check-in', 'analytics', 'reports']" 
         :key="tab"
@@ -21,7 +27,7 @@
     </div>
 
     <!-- TAB 1: Overview -->
-    <div v-if="activeTab === 'overview'" class="tab-content">
+    <div v-if="activeTab === 'overview' && !isLoading" class="tab-content">
       <div class="metrics-grid">
         <div class="metric-card">
           <div class="metric-icon">
@@ -58,7 +64,7 @@
     </div>
 
     <!-- TAB 2: Check-In/Check-Out -->
-    <div v-if="activeTab === 'check-in'" class="tab-content">
+    <div v-if="activeTab === 'check-in' && !isLoading" class="tab-content">
       <div class="check-in-container">
         <div class="section">
           <h2>Event Check-In/Check-Out</h2>
@@ -162,7 +168,7 @@
     </div>
 
     <!-- TAB 3: Analytics & Dashboards -->
-    <div v-if="activeTab === 'analytics'" class="tab-content">
+    <div v-if="activeTab === 'analytics' && !isLoading" class="tab-content">
       <div class="analytics-container">
         <h2>Analytics Dashboard</h2>
 
@@ -261,7 +267,7 @@
     </div>
 
     <!-- TAB 4: Generate Reports -->
-    <div v-if="activeTab === 'reports'" class="tab-content">
+    <div v-if="activeTab === 'reports' && !isLoading" class="tab-content">
       <div class="reports-container">
         <h2>Download Reports</h2>
 
@@ -373,9 +379,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useAuthStore } from '~~/stores/auth'
 import { useOrgStore } from '~~/stores/orgs'
+import { getFirestore, collection, query, where, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore'
 
 const authStore = useAuthStore()
 const orgStore = useOrgStore()
@@ -394,12 +401,18 @@ const isGeneratingReport = ref(false)
 const reportError = ref('')
 const reportSuccess = ref('')
 const reportPreviewData = ref<any>(null)
-
-// Mock data - replace with real data from stores/API
+const isLoading = ref(true)
+const isLoadingAnalytics = ref(false)
 const upcomingEvents = ref<any[]>([])
 const allVolunteers = ref<any[]>([])
 const checkedInVolunteers = ref<any[]>([])
-const analyticsData = ref({
+const analyticsData = ref<{
+  totalParticipants: number
+  totalHours: number
+  totalEvents: number
+  topVolunteers: Array<{ id: string; name: string; hours: number; events: number; participation: number }>
+  events: Array<{ id: string; name: string; date: string; volunteers: number; totalHours: number; completionRate: number }>
+}>({
   totalParticipants: 0,
   totalHours: 0,
   totalEvents: 0,
@@ -447,7 +460,8 @@ function formatTabName(tab: string) {
 }
 
 function getDateString(date: Date): string {
-  return date.toISOString().split('T')[0]
+  const dateStr = date.toISOString().split('T')[0]
+  return dateStr || ''
 }
 
 function formatDate(dateStr: string): string {
@@ -478,30 +492,279 @@ function calculateHours(checkInTime: string | null): string {
   return hours.toFixed(1)
 }
 
-function checkInVolunteer(volunteerId: string) {
-  const volunteer = allVolunteers.value.find(v => v.id === volunteerId)
-  if (volunteer) {
-    volunteer.status = 'checked-in'
-    volunteer.checkInTime = new Date().toISOString()
-    checkedInVolunteers.value.push(volunteer)
+
+
+async function loadEventsData() {
+  try {
+    const db = getFirestore()
+    const orgId = selectedOrgId.value || authStore.profile?.organizationId
+    
+    if (!orgId) {
+      console.warn('No organization ID available')
+      upcomingEvents.value = []
+      return
+    }
+
+    const eventsRef = collection(db, 'events')
+    const q = query(eventsRef, where('organizationId', '==', orgId))
+    const snapshot = await getDocs(q)
+    
+    const events = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data() as any
+    }))
+
+    upcomingEvents.value = events.sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())
+  } catch (error) {
+    console.error('Error loading events:', error)
+    upcomingEvents.value = []
   }
 }
 
-function checkOutVolunteer(volunteerId: string) {
-  const volunteer = allVolunteers.value.find(v => v.id === volunteerId)
-  if (volunteer) {
-    volunteer.status = 'completed'
-    volunteer.checkOutTime = new Date().toISOString()
-    checkedInVolunteers.value = checkedInVolunteers.value.filter(v => v.id !== volunteerId)
+async function loadVolunteersForEvent(eventId: string) {
+  try {
+    const db = getFirestore()
+    const eventRef = doc(db, 'events', eventId)
+    const eventSnap = await getDoc(eventRef)
+    
+    if (!eventSnap.exists()) return
+
+    const eventData = eventSnap.data()
+    const attendees = eventData.attendees || []
+
+    const volunteers: any[] = []
+    for (const attendee of attendees) {
+      try {
+        const userRef = doc(db, 'users', attendee.volunteerId)
+        const userSnap = await getDoc(userRef)
+        
+        if (userSnap.exists()) {
+          const userData = userSnap.data()
+          volunteers.push({
+            id: attendee.volunteerId,
+            name: userData.name || 'Unknown',
+            email: userData.email || 'N/A',
+            status: attendee.status || 'registered',
+            checkInTime: attendee.checkInTime || null,
+            checkOutTime: attendee.checkOutTime || null,
+            hoursVerified: attendee.hoursVerified || false
+          })
+        }
+      } catch (err) {
+        console.error(`Error loading volunteer ${attendee.volunteerId}:`, err)
+      }
+    }
+
+    allVolunteers.value = volunteers
+    checkedInVolunteers.value = volunteers.filter(v => v.status === 'checked-in')
+  } catch (error) {
+    console.error('Error loading volunteers:', error)
+    allVolunteers.value = []
+  }
+}
+
+async function checkInVolunteer(volunteerId: string) {
+  try {
+    if (!selectedEventId.value) return
+
+    const db = getFirestore()
+    const eventRef = doc(db, 'events', selectedEventId.value)
+    const eventSnap = await getDoc(eventRef)
+    
+    if (!eventSnap.exists()) return
+
+    const eventData = eventSnap.data()
+    const attendees = eventData.attendees || []
+    
+    const attendeeIndex = attendees.findIndex((a: any) => a.volunteerId === volunteerId)
+    if (attendeeIndex !== -1) {
+      attendees[attendeeIndex].status = 'checked-in'
+      attendees[attendeeIndex].checkInTime = new Date().toISOString()
+      
+      await updateDoc(eventRef, { attendees })
+      
+      await loadVolunteersForEvent(selectedEventId.value)
+    }
+  } catch (error) {
+    console.error('Error checking in volunteer:', error)
+  }
+}
+
+async function checkOutVolunteer(volunteerId: string) {
+  try {
+    if (!selectedEventId.value) return
+
+    const db = getFirestore()
+    const eventRef = doc(db, 'events', selectedEventId.value)
+    const eventSnap = await getDoc(eventRef)
+    
+    if (!eventSnap.exists()) return
+
+    const eventData = eventSnap.data()
+    const attendees = eventData.attendees || []
+    
+    const attendeeIndex = attendees.findIndex((a: any) => a.volunteerId === volunteerId)
+    if (attendeeIndex !== -1) {
+      attendees[attendeeIndex].status = 'completed'
+      attendees[attendeeIndex].checkOutTime = new Date().toISOString()
+      
+      await updateDoc(eventRef, { attendees })
+      
+      await loadVolunteersForEvent(selectedEventId.value)
+    }
+  } catch (error) {
+    console.error('Error checking out volunteer:', error)
   }
 }
 
 async function loadAnalytics() {
   try {
-    // Load analytics data
-    // TODO: Call API to fetch real data
+    isLoadingAnalytics.value = true
+    const db = getFirestore()
+    const orgId = selectedOrgId.value || authStore.profile?.organizationId
+    
+    if (!orgId) return
+
+    const dateFrom = new Date(analyticsDateFrom.value)
+    const dateTo = new Date(analyticsDateTo.value)
+
+    const eventsRef = collection(db, 'events')
+    const q = query(eventsRef, where('organizationId', '==', orgId))
+    const snapshot = await getDocs(q)
+    
+    const events = snapshot.docs
+      .map(doc => ({ id: doc.id, ...doc.data() as any }))
+      .filter((e: any) => {
+        const eventDate = new Date(e.date)
+        return eventDate >= dateFrom && eventDate <= dateTo
+      })
+
+    let totalParticipants = 0
+    let totalHours = 0
+    const volunteerHours: Record<string, { name: string; hours: number; events: Set<string> }> = {}
+    const eventData: any[] = []
+
+    for (const event of events) {
+      const attendees = event.attendees || []
+      let eventTotalHours = 0
+      let eventCompletedCount = 0
+
+      for (const attendee of attendees) {
+        totalParticipants++
+        
+        let hours = 0
+        if (attendee.checkInTime && attendee.checkOutTime) {
+          const checkIn = new Date(attendee.checkInTime).getTime()
+          const checkOut = new Date(attendee.checkOutTime).getTime()
+          hours = (checkOut - checkIn) / (1000 * 60 * 60)
+        }
+
+        totalHours += hours
+        eventTotalHours += hours
+
+        if (attendee.status === 'completed') {
+          eventCompletedCount++
+        }
+
+        if (!volunteerHours[attendee.volunteerId]) {
+          try {
+            const userRef = doc(db, 'users', attendee.volunteerId)
+            const userSnap = await getDoc(userRef)
+            const userName = userSnap.exists() ? userSnap.data().name : 'Unknown'
+            
+            volunteerHours[attendee.volunteerId] = {
+              name: userName,
+              hours: 0,
+              events: new Set()
+            }
+          } catch (err) {
+            volunteerHours[attendee.volunteerId] = { name: 'Unknown', hours: 0, events: new Set() }
+          }
+        }
+
+        const volHours = volunteerHours[attendee.volunteerId]
+        if (volHours) {
+          volHours.hours += hours
+          volHours.events.add(event.id)
+        }
+      }
+
+      eventData.push({
+        id: event.id,
+        name: event.title,
+        date: event.date,
+        volunteers: attendees.length,
+        totalHours: eventTotalHours,
+        completionRate: attendees.length > 0 ? Math.round((eventCompletedCount / attendees.length) * 100) : 0
+      })
+    }
+
+    const topVolunteers = Object.entries(volunteerHours)
+      .map(([id, data]) => ({
+        id,
+        name: data.name,
+        hours: data.hours,
+        events: data.events.size,
+        participation: totalHours > 0 ? Math.round((data.hours / totalHours) * 100) : 0
+      }))
+      .sort((a, b) => b.hours - a.hours)
+
+    analyticsData.value = {
+      totalParticipants,
+      totalHours,
+      totalEvents: events.length,
+      topVolunteers,
+      events: eventData
+    }
   } catch (error) {
     console.error('Error loading analytics:', error)
+  } finally {
+    isLoadingAnalytics.value = false
+  }
+}
+
+async function calculateOverviewStats() {
+  try {
+    const db = getFirestore()
+    const orgId = authStore.profile?.organizationId
+    
+    if (!orgId) return
+
+    const eventsRef = collection(db, 'events')
+    const q = query(eventsRef, where('organizationId', '==', orgId))
+    const snapshot = await getDocs(q)
+    
+    const events = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() as any }))
+
+    let totalVolunteers = 0
+    let totalHours = 0
+    const uniqueVolunteers = new Set()
+
+    for (const event of events) {
+      const attendees = event.attendees || []
+      
+      for (const attendee of attendees) {
+        uniqueVolunteers.add(attendee.volunteerId)
+        
+        if (attendee.checkInTime && attendee.checkOutTime) {
+          const checkIn = new Date(attendee.checkInTime).getTime()
+          const checkOut = new Date(attendee.checkOutTime).getTime()
+          const hours = (checkOut - checkIn) / (1000 * 60 * 60)
+          totalHours += hours
+        }
+      }
+    }
+
+    totalVolunteers = uniqueVolunteers.size
+
+    overviewStats.value = {
+      totalVolunteers,
+      totalHours,
+      totalEvents: events.length,
+      avgHoursPerVolunteer: totalVolunteers > 0 ? totalHours / totalVolunteers : 0
+    }
+  } catch (error) {
+    console.error('Error calculating overview stats:', error)
   }
 }
 
@@ -553,12 +816,31 @@ async function generateReport() {
   }
 }
 
+// Watchers
+watch(() => selectedEventId.value, (newEventId) => {
+  volunteerSearch.value = ''
+  if (newEventId) {
+    loadVolunteersForEvent(newEventId)
+  }
+})
+
+watch(() => selectedOrgId.value, () => {
+  loadEventsData()
+  calculateOverviewStats()
+  loadAnalytics()
+})
+
 // Lifecycle
 onMounted(async () => {
-  // TODO: Load real data from API/stores
-  // Load upcoming events
-  // Load volunteers
-  // Load analytics
+  try {
+    await loadEventsData()
+    await calculateOverviewStats()
+    await loadAnalytics()
+  } catch (error) {
+    console.error('Error initializing reports:', error)
+  } finally {
+    isLoading.value = false
+  }
 })
 </script>
 
@@ -567,6 +849,25 @@ onMounted(async () => {
   padding: 2rem;
   max-width: 1400px;
   margin: 0 auto;
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+  color: #2563eb;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .page-header {
