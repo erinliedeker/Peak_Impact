@@ -123,21 +123,6 @@
       <span>or</span>
     </div>
 
-    <div class="oauth-buttons">
-      <button type="button" class="google-btn" @click="handleGoogleSignIn" :disabled="isLoading">
-        <span class="google-icon" aria-hidden="true">
-          <svg viewBox="0 0 48 48" width="20" height="20" role="img" focusable="false">
-            <path fill="#EA4335" d="M24 9.5c3.54 0 6 1.54 7.38 2.84l5.4-5.26C33.64 3.34 29.28 1.5 24 1.5 14.66 1.5 6.64 7.72 3.64 16.02l6.92 5.37C12 15.18 17.41 9.5 24 9.5z"/>
-            <path fill="#4285F4" d="M46.5 24.5c0-1.6-.14-2.76-.42-3.96H24v7.19h12.7c-.26 1.8-1.7 4.5-4.9 6.3l7.54 5.82c4.4-4.06 7.16-10.04 7.16-15.35z"/>
-            <path fill="#FBBC05" d="M10.56 28.64A14.5 14.5 0 0 1 9.5 24c0-1.6.28-3.14.76-4.64L3.34 13.9C2.12 16.7 1.5 19.78 1.5 23s.62 6.3 1.84 9.1l7.22-5.46z"/>
-            <path fill="#34A853" d="M24 46.5c6.48 0 11.92-2.12 15.9-5.77l-7.54-5.82c-2.04 1.36-4.8 2.3-8.36 2.3-6.6 0-12.03-4.44-14.04-10.57l-6.92 5.37C6.64 40.28 14.66 46.5 24 46.5z"/>
-            <path fill="none" d="M1.5 1.5h45v45h-45z"/>
-          </svg>
-        </span>
-        <span>Continue with Google</span>
-      </button>
-    </div>
-
     <div class="auth-footer">
       <button @click="router.push('/login')" class="link-button">
         Already have an account? Log In

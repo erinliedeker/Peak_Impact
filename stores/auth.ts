@@ -54,9 +54,11 @@ export const useAuthStore = defineStore("auth", {
       if (process.server) return; // Ensure this only runs on client
 
       // Disable Firebase auth persistence - use session storage only (clears on browser close)
-     const auth = useFirebaseAuth();
+      const auth = useFirebaseAuth();
       if (auth) {
-        const { setPersistence, browserLocalPersistence } = await import('firebase/auth'); 
+        const { setPersistence, browserLocalPersistence } = await import(
+          "firebase/auth"
+        );
         // Changed from browserSessionPersistence to browserLocalPersistence
         try {
           await setPersistence(auth, browserLocalPersistence);
@@ -141,11 +143,11 @@ export const useAuthStore = defineStore("auth", {
           console.log("User logged in: ", this.profile);
         } else {
           // Profile doesn't exist yet - this can happen during signup
-          console.warn('[AuthStore] User profile not found yet for:', uid);
+          console.warn("[AuthStore] User profile not found yet for:", uid);
           this.profile = null;
         }
       } catch (error) {
-        console.error('[AuthStore] Failed to fetch profile:', error);
+        console.error("[AuthStore] Failed to fetch profile:", error);
         throw error; // Let caller handle or bubble up
       } finally {
         this.loading = false;
@@ -179,28 +181,36 @@ export const useAuthStore = defineStore("auth", {
      */
     async logout(shouldRedirect = true) {
       const auth = useFirebaseAuth();
-      if (!auth) return;
+
+      // If auth is not ready, just reset local state to be safe
+      if (!auth) {
+        this.resetState();
+        return;
+      }
 
       this.loading = true;
 
       try {
+        // 1. Sign out from Firebase
+        // This automatically clears the persistence (LocalStorage/IndexedDB)
         await signOut(auth);
 
-        // Explicitly clear ALL storage to ensure complete logout
-        sessionStorage.clear();
-
-        // Clear all Firebase-related localStorage entries
-        Object.keys(localStorage).forEach((key) => {
-          if (key.startsWith("firebase:") || key.includes("auth")) {
-            localStorage.removeItem(key);
-          }
-        });
-
-        // Reset state immediately
+        // 2. Reset Pinia State
+        // (Your watcher in initializeAuth will also trigger, but this ensures immediate UI update)
         this.resetState();
 
+        // 3. Clear session storage if you use it for other non-auth app data
+        sessionStorage.clear();
+
         if (shouldRedirect) {
-          window.location.href = "/login";
+          // 4. Use Nuxt's navigateTo or Vue Router instead of window.location
+          // This preserves the SPA state and prevents re-triggering initializeAuth prematurely
+          if (typeof navigateTo !== "undefined") {
+            await navigateTo("/login"); // Nuxt 3
+          } else {
+            // Fallback if not using Nuxt auto-imports
+            window.location.replace("/login");
+          }
         }
       } catch (err) {
         console.error("[AuthStore] Logout Error:", err);
