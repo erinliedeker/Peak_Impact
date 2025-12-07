@@ -71,19 +71,20 @@ export const useEventsStore = defineStore('events', {
 
                             return {
                                 // Prefix ID to prevent collisions with Firestore IDs
-                                id: `mobilize-${mEvent.id}`, 
+                                id: `mobilize-${mEvent.id}`,
                                 title: mEvent.title,
                                 description: mEvent.description || mEvent.summary,
                                 category: 'Social', // Default category (Mobilize tags are unstructured)
-                                
+
+
+
                                 // Mobilize gives a string or object for venue. We map it to string for display.
                                 // Note: Ensure your UI handles `location` as (GeoLocation | string)
                                 location: mEvent.location?.venue || 'Virtual/Online',
-                                
+
                                 date: startTime.toISOString(),
-                                start: startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                                end: null,
-                                
+                                time: startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+
                                 // Flag as external
                                 isExternal: true,
                                 externalUrl: mEvent.browser_url,
@@ -98,7 +99,7 @@ export const useEventsStore = defineStore('events', {
                                 suppliesNeeded: [],
                                 attendees: [],
                                 createdAt: new Date(mEvent.created_date * 1000).toISOString()
-                            } as ConnectEvent;
+                            } as unknown as ConnectEvent;
                         });
                     }
                 } else {
@@ -157,6 +158,8 @@ export const useEventsStore = defineStore('events', {
 
                 const rawAttendance: VolunteerAttendance[] = event.attendees;
                 const volunteerUids = rawAttendance.map(a => a.volunteerId);
+
+                console.log(volunteerUids)
                 
                 // 2. ⭐️ FETCH USER PROFILES using the new service
                 const userProfiles = await UserService.getUsersByUids(volunteerUids); 

@@ -17,13 +17,14 @@
         <UIcon name="i-lucide-arrow-up-right" size="1rem" />
       </a>
       <button 
-      v-else
-      class="btn primary" 
-      @click="handleSignUp"
-      :disabled="buttonState.disabled"
-    >
-      {{ buttonState.text }}
-    </button>
+        v-else 
+        class="btn primary" 
+        @click="handleSignUp"
+        :disabled="isSigningUp || isAlreadySignedUp"
+      >
+      Sign Up
+      </button>
+
       <button class="btn secondary">Share</button>
     </div>
 

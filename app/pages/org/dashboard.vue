@@ -58,11 +58,7 @@
                 <div class="live-meta">
                   <span>
                     <Icon name="heroicons:clock" class="icon-sm" /> 
-                    {{ event.start }}
-                  </span>
-                  <span>
-                    <Icon name="heroicons:clock" class="icon-sm" /> 
-                    {{ event.end }}
+                    {{ event.start }} - {{ event.end }}
                   </span>
                   <span>
                     <Icon name="heroicons:users" class="icon-sm" /> 
@@ -127,11 +123,11 @@
                   </div>
                   <div class="form-group half">
                     <label>Start Time</label>
-                    <input v-model="eventForm.start" required type="time" step="60" /> 
+                    <input v-model="eventForm.start" required type="time" /> 
                   </div>
                   <div class="form-group half">
                     <label>End Time</label>
-                    <input v-model="eventForm.end" required type="time" step="60" /> 
+                    <input v-model="eventForm.end" required type="time" /> 
                   </div>
                 </div>
 
@@ -210,22 +206,12 @@
                 </div>
                 <div class="date-badge">
                   <span>{{ event.date }}</span>
-                  <small>{{ event.start }}</small>
-                  <small>{{ event.end }}</small>
-
+                  <small>{{ event.start }} - {{ event.end }}</small>
                 </div>
               </div>
               
               <div class="card-body">
                 <p class="description-text">{{ event.description }}</p>
-                
-                <div v-if="event.suppliesNeeded && event.suppliesNeeded.length > 0" class="supplies-row">
-                  <span v-for="supply in event.suppliesNeeded" :key="supply" class="supply-badge">
-                    <Icon name="heroicons:wrench-screwdriver" class="icon-xs" /> 
-                    {{ supply }}
-                  </span>
-                </div>
-
                 <div class="progress-info">
                   <strong>Volunteers:</strong> {{ event.volunteersSignedUp }} / {{ event.volunteersNeeded }}
                   <div class="progress-bar">
@@ -282,14 +268,23 @@
           <div class="search-wrapper">
             <div class="input-with-icon">
                 <Icon name="heroicons:magnifying-glass" class="search-icon" />
-                <input type="text" placeholder="Search volunteer name..." class="search-bar pl-10" />
+                <input 
+                  v-model="searchQuery"
+                  type="text" 
+                  placeholder="Search volunteer name..." 
+                  class="search-bar pl-10" 
+                />
             </div>
           </div>
 
           <ul class="volunteer-list">
-            <li v-for="volunteer in eventAttendees" :key="volunteer.uid" class="volunteer-row">
+            <li v-for="volunteer in filteredAttendees" :key="volunteer.uid" class="volunteer-row">
               <div class="volunteer-info">
-                <strong>{{ volunteer.name }}</strong>
+                <div>
+                  <strong>{{ volunteer.name }}</strong>
+                  <div class="small-text">{{ volunteer.email }}</div>
+                </div>
+                
                 <span :class="['status-dot', volunteer.status]"></span>
                 <span class="status-text">{{ formatStatus(volunteer.status) }}</span>
               </div>
@@ -311,14 +306,17 @@
                   <Icon name="heroicons:arrow-right-on-rectangle" /> Check Out
                 </button>
                 
-                <button
+                <div
                   v-if="volunteer.status === 'completed'"
-                  @click="handleGenerateLetter(volunteer)"
-                  class="btn btn-sm btn-outline icon-btn"
+                  class="verified-badge"
                 >
-                   <Icon name="heroicons:envelope" /> Letter
-                </button>
+                   <Icon name="heroicons:check-badge" /> Hours Verified
+                </div>
               </div>
+            </li>
+            
+            <li v-if="filteredAttendees.length === 0" class="no-results">
+                No volunteers found matching "{{ searchQuery }}"
             </li>
           </ul>
         </div>
@@ -357,11 +355,12 @@ const showCheckInModal = ref(false)
 const isSubmitting = ref(false)
 const suppliesInput = ref('')
 const formError = ref<string | null>(null)
-const activeEvent = ref<ConnectEvent | null>(null) // Used for the check-in modal
+const searchQuery = ref('') // New: For modal search
+
+const activeEvent = ref<ConnectEvent | null>(null)
 const eventAttendees = ref<Attendee[]>([]); 
 
 // --- Types for Form ---
-// Omitting fields that are calculated or set by the store/server (e.g., organizationId, createdAt, attendees count)
 type EventFormState = Omit<ConnectEvent, 'id' | 'organizationId' | 'organizationName' | 'volunteersSignedUp' | 'attendees' | 'createdAt'>
 
 const INITIAL_FORM_STATE: EventFormState = {
@@ -370,14 +369,12 @@ const INITIAL_FORM_STATE: EventFormState = {
   date: '',
   start: '',
   end: '',
-  location: { lat: 38.8339, lng: -104.8214 },
+  location: { lat: 38.8339, lng: -104.8214 }, // Default to Colorado Springs area
   category: 'Social',
   volunteersNeeded: 5,
   isMicroProject: false,
   suppliesNeeded: [],
   isExternal: false,
-  externalUrl: undefined,
-  imageUrl: undefined,
 }
 
 const eventForm = reactive<EventFormState>({ ...INITIAL_FORM_STATE })
@@ -386,15 +383,26 @@ const eventForm = reactive<EventFormState>({ ...INITIAL_FORM_STATE })
 
 const todaysEvents = computed(() => {
   if (!organizationEvents.value) return []
-  // Filter by today's date (assuming ISO date string 'YYYY-MM-DD')
   const today = new Date().toISOString().split('T')[0];
+  // Simple check: Is the event date match today?
   return organizationEvents.value.filter(e => e.date === today) 
 })
 
 const otherEvents = computed(() => {
    if (!organizationEvents.value) return []
+   // Exclude today's events from the main list so they don't appear twice
    const todayEventIds = todaysEvents.value.map(e => e.id);
    return organizationEvents.value.filter(e => !todayEventIds.includes(e.id))
+})
+
+// New: Filter attendees based on search input
+const filteredAttendees = computed(() => {
+    if (!searchQuery.value) return eventAttendees.value;
+    const lowerQ = searchQuery.value.toLowerCase();
+    return eventAttendees.value.filter(att => 
+        att.name.toLowerCase().includes(lowerQ) || 
+        att.email.toLowerCase().includes(lowerQ)
+    );
 })
 
 // 5. Actions
@@ -403,18 +411,19 @@ async function loadDashboardData() {
   if (!profile.value?.organizationId) return
   await orgStore.fetchOwnedOrganizations(profile.value.organizationId)
   if (ownedOrganization.value) {
-    // Ensuring the ID is passed correctly (it's typed as string|number in the store)
     await eventStore.fetchOrganizationEvents(ownedOrganization.value.id)
   }
 }
 
-// Modal Logic
+// --- MODAL LOGIC ---
+
 async function openCheckInModal(event: ConnectEvent) {
   activeEvent.value = event
   showCheckInModal.value = true
+  searchQuery.value = '' // Reset search
   
-  // Fetch the detailed list of attendees
   try {
+    // ⭐️ Fetches user profiles merged with attendance status
     eventAttendees.value = await eventStore.fetchEventAttendees(event.id);
   } catch (error) {
     console.error("Failed to load attendees:", error);
@@ -425,7 +434,7 @@ async function openCheckInModal(event: ConnectEvent) {
 function closeCheckInModal() {
   showCheckInModal.value = false
   activeEvent.value = null
-  eventAttendees.value = [] // Clear list on close
+  eventAttendees.value = []
 }
 
 function getAttendeesByStatus(status: Attendee['status']) {
@@ -438,64 +447,46 @@ function formatStatus(status: string) {
   return 'Registered'
 }
 
+// ⭐️ CHECK IN ACTION
 async function handleCheckIn(volunteer: Attendee) {
-  // ✅ FIX: Null check for activeEvent
-  if (!activeEvent.value) { 
-      console.error("Cannot check in: No active event context.");
-      return;
-  }
+  if (!activeEvent.value) return;
 
   try {
-    // 1. Call the store action (persists to Firestore)
+    // 1. Call Store (which calls Firebase)
     await eventStore.checkInVolunteer(activeEvent.value.id, volunteer.uid);
 
-    // 2. Update local state immediately for fast UI feedback
-    const index = eventAttendees.value.findIndex(a => a.uid === volunteer.uid);
-    if (index !== -1) {
-      eventAttendees.value[index].status = 'checked-in';
+    // 2. Optimistic Update: Update local list immediately
+    const target = eventAttendees.value.find(a => a.uid === volunteer.uid);
+    if (target) {
+        target.status = 'checked-in';
+        target.checkInTime = new Date().toISOString();
     }
   } catch (e) {
     console.error("Check-In failed:", e);
+    alert("Failed to check in volunteer.");
   }
 }
 
+// ⭐️ CHECK OUT ACTION
 async function handleCheckOut(volunteer: Attendee) {
-  // ✅ FIX: Null check for activeEvent
   if (!activeEvent.value) return; 
 
-  if(confirm(`Finish volunteering for ${volunteer.name}? This will mark hours verified and update attendance status.`)) {
-    try {
-      // 1. Call the store action (persists to Firestore)
-      await eventStore.checkOutVolunteer(activeEvent.value.id, volunteer.uid);
-      
-      // 2. Update local state immediately
-      const index = eventAttendees.value.findIndex(a => a.uid === volunteer.uid);
-      if (index !== -1) {
-        eventAttendees.value[index].status = 'completed';
-      }
-    } catch (e) {
-      console.error("Check-Out failed:", e);
-    }
-  }
-}
+  const confirmed = confirm(`Complete volunteering for ${volunteer.name}? This will verify their hours.`);
+  if (!confirmed) return;
 
-async function handleGenerateLetter(volunteer: Attendee) {
-  // ✅ FIX: Null check for activeEvent
-  if (!activeEvent.value) return;
-
-  if (volunteer.status !== 'completed') {
-    alert("Volunteer must have 'Completed' status before generating a letter.");
-    return;
-  }
-  
   try {
-    // Call the store action
-    await eventStore.generateVerificationLetter(activeEvent.value.id, volunteer.uid);
-    alert(`Verification letter process initiated for ${volunteer.name}.`);
-
+    // 1. Call Store (which calls Firebase)
+    await eventStore.checkOutVolunteer(activeEvent.value.id, volunteer.uid);
+    
+    // 2. Optimistic Update
+    const target = eventAttendees.value.find(a => a.uid === volunteer.uid);
+    if (target) {
+        target.status = 'completed';
+        target.checkOutTime = new Date().toISOString();
+    }
   } catch (e) {
-    console.error("Letter generation failed:", e);
-    alert("Failed to initiate letter generation.");
+    console.error("Check-Out failed:", e);
+    alert("Failed to check out volunteer.");
   }
 }
 
@@ -514,7 +505,6 @@ function removeSupply(index: number) {
 }
 
 function resetForm() {
-  // Use Object.assign to reset reactive object
   Object.assign(eventForm, INITIAL_FORM_STATE)
   eventForm.suppliesNeeded = [] 
   editingEventId.value = null 
@@ -528,7 +518,6 @@ function toggleForm() {
 }
 
 function startEdit(event: ConnectEvent) {
-  // Map event data to form state
   Object.assign(eventForm, {
     title: event.title,
     description: event.description,
@@ -540,8 +529,6 @@ function startEdit(event: ConnectEvent) {
     isMicroProject: event.isMicroProject,
     suppliesNeeded: [...event.suppliesNeeded],
     isExternal: event.isExternal,
-    externalUrl: event.externalUrl,
-    imageUrl: event.imageUrl,
   })
   
   editingEventId.value = event.id
@@ -550,7 +537,6 @@ function startEdit(event: ConnectEvent) {
   window.scrollTo({ top: 100, behavior: 'smooth' })
 }
 
-// Handles Create/Update delegation
 async function handleSubmit() {
   if (editingEventId.value) {
     await handleUpdateEvent()
@@ -565,48 +551,45 @@ async function handleCreateEvent() {
   formError.value = null
 
   try {
-    // ✅ FIX: Payload type now correctly omits 'createdAt'
     const payload: Omit<ConnectEvent, 'id' | 'createdAt'> = {
       ...eventForm,
-      // ✅ FIX: organizationId explicitly cast to String
       organizationId: String(ownedOrganization.value.id), 
       organizationName: ownedOrganization.value.name,
       volunteersSignedUp: 0,
       attendees: [],
     }
+    console.log(payload)
     await eventStore.createEvent(payload)
     showCreateForm.value = false
     resetForm()
-    alert('Event Created Successfully!')
   } catch (e: any) {
-    console.error(e)
     formError.value = e.message || 'Failed to post event.'
   } finally {
     isSubmitting.value = false
   }
 }
 
-// FINALIZED UPDATE ACTION
 async function handleUpdateEvent() {
   // if (!editingEventId.value) return
   // isSubmitting.value = true
   // formError.value = null
 
-  // try {
-  //   const payload = {
-  //     ...eventForm,
-  //     id: editingEventId.value
-  //   }
-  //   await eventStore.updateEvent(payload)
-  //   showCreateForm.value = false
-  //   resetForm()
-  //   alert('Event Updated Successfully!')
-  // } catch (e: any) {
-  //   console.error(e)
-  //   formError.value = e.message || 'Failed to update event.'
-  // } finally {
-  //   isSubmitting.value = false
-  // }
+  try {
+    const payload = {
+      ...eventForm,
+      id: editingEventId.value,
+      organizationId: String(ownedOrganization.value.id), 
+      organizationName: ownedOrganization.value.name,
+    }
+
+    await eventStore.updateEvent(payload as any)
+    showCreateForm.value = false
+    resetForm()
+  } catch (e: any) {
+    formError.value = e.message || 'Failed to update event.'
+  } finally {
+    isSubmitting.value = false
+  }
 }
 
 watch(profile, (newProfile) => { if (newProfile) loadDashboardData() }, { immediate: true })
@@ -872,8 +855,10 @@ input:focus, textarea:focus, select:focus {
   padding: 12px 0; border-bottom: 1px solid var(--color-border);
 }
 .volunteer-row:last-child { border-bottom: none; }
+.no-results { text-align: center; padding: 20px; color: var(--color-text-muted); }
 
-.volunteer-info { display: flex; align-items: center; gap: 10px; }
+.volunteer-info { display: flex; align-items: center; gap: 10px; flex: 1; }
+.small-text { font-size: 0.85rem; color: #64748b; font-weight: normal; }
 
 /* Status Dots */
 .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
