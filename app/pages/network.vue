@@ -280,8 +280,15 @@ async function loadPeople(): Promise<void> {
     
     for (const d of snap.docs) {
       const data = d.data();
+      
+      // Skip current user
       if (currentId && d.id === currentId) {
-        continue; // exclude self
+        continue;
+      }
+      
+      // Skip deleted or inactive users (users without name/email are considered deleted)
+      if (!data.name || !data.email) {
+        continue;
       }
       
       // Get mutual friends count
@@ -289,11 +296,11 @@ async function loadPeople(): Promise<void> {
       
       list.push({
         id: d.id,
-        name: data.name || 'User',
+        name: data.name,
         impactPoints: data.impactPoints || 0,
         userType: data.userType,
         mutualFriends: mutualCount,
-        initials: initialsFor(data.name || 'U')
+        initials: initialsFor(data.name)
       });
     }
     
