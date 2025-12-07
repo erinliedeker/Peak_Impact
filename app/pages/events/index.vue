@@ -3,7 +3,6 @@
     <EventSearchBar
       @search="onSearch"
       @update:filters="onFiltersUpdate"
-      @clear-filters="onFiltersUpdate({})"
     />
     <div class="content-window">
       <div class="event-list-container">
@@ -19,8 +18,8 @@
         />
       </div>
     </div>
-  </div>
 
+  </div>  
   <div v-if="loading" class="placeholder-page">Loading events...</div>
 </template>
 
@@ -134,7 +133,7 @@ onMounted(fetchEvents)
   flex-direction: row;
   width: 100%;
   height: 100%;
-  overflow: hidden;
+  overflow: clip;
 }
 
 .event-list-container {
