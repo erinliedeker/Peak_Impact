@@ -163,11 +163,7 @@ export const useAuthStore = defineStore('auth', {
         // Note: The watcher in initializeAuth will handle the state reset (isLoggedIn = false)
         
         if (shouldRedirect) {
-          const router = useRouter();
-          // Force a reload to clear any memory/middleware artifacts
-          // (Optional, but helps with sticky redirect loops)
            window.location.href = '/'; 
-           // or await router.push('/login');
         }
       } catch (err) {
         console.error('[AuthStore] Logout Error:', err);
