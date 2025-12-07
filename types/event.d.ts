@@ -17,10 +17,10 @@ export interface VolunteerAttendance {
  * Update the ConnectEvent interface to include the attendance array.
  */
 export interface ConnectEvent {
-    id: number;
+    id: string;
     title: string;
     description: string;
-    organizationId: number;
+    organizationId: string | number;
     organizationName: string;
     location: GeoLocation;
     date: string;
@@ -41,26 +41,6 @@ export interface GeoLocation {
     lat: number;
     lng: number;
 }
-
-/**
- * Defines the core structure for a volunteer opportunity (Event, Cleanup, Gathering).
- */
-export interface ConnectEvent {
-    id: number;
-    title: string;
-    description: string;
-    organizationId: number;
-    organizationName: string;
-    location: GeoLocation;
-    date: string; // ISO format
-    time: string;
-    category: 'PublicSafety' | 'Environment' | 'Youth' | 'Arts' | 'Social';
-    volunteersNeeded: number;
-    volunteersSignedUp: number;
-    isMicroProject: boolean; // Differentiates from large events
-    suppliesNeeded: string[];
-}
-
 /**
  * Defines the structure of an Organization or Group profile.
  */
@@ -84,6 +64,7 @@ export interface Organization {
 // 1. Events Store State
 export interface EventsState {
     allEvents: ConnectEvent[];
+    organizationEvents: ConnectEvent[],
     isLoading: boolean;
     activeFilters: {
         category: string | null;

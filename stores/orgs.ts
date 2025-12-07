@@ -143,7 +143,6 @@ export const useOrgStore = defineStore("orgs", {
       this.isLoading = true;
       this.error = null;
       try {
-        console.log("1")
         // Use the existing service method
         const myOrgs = await OrgService.getById(userId);
         
