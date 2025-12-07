@@ -90,8 +90,6 @@ const filteredOrgs = computed(() => {
     );
   }
 
-  console.log(list)
-
   return list;
 });
 

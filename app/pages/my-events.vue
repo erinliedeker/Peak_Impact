@@ -98,7 +98,7 @@ onMounted(() => {
 })
 
 async function fetchEvents() {
-  allEvents.value = await useEventsStore().fetchEvents();
+  allEvents.value = await useEventsStore().fetchMyEvents();
   if(!selectedEvent.value) {
     selectedEvent.value = allEvents.value[0] || null;
   }

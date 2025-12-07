@@ -62,7 +62,7 @@ function filterEvents({ query: q, filters: f }) {
 
     // 4. Status match (simplified since 'status' isn't in your interface yet)
     // You might want to remove this if you don't have a status filter on the UI yet
-    const status = '';
+    let status = '';
     if(ev.volunteersNeeded > ev.volunteersSignedUp) {
       status = 'open';
     } else {

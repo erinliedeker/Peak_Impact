@@ -132,6 +132,22 @@ export const useEventsStore = defineStore('events', {
             }
         },
 
+        async fetchMyEvents(volunteerId: string) {
+            this.isLoading = true;
+            this.error = null;
+            try {
+                const allEvents = await EventService.getAll();
+                const myEvents = allEvents.filter(event => 
+                    event.attendees.some(att => att.volunteerId === volunteerId));
+                return myEvents;
+            } catch (e: any) {
+                console.error("Failed to load my events:", e);
+                this.error = 'Failed to load your events.';
+                return [];
+            } finally {
+                this.isLoading = false;
+            }
+        },
         // --- CRUD ACTIONS ---
 
         async createEvent(eventData: Omit<ConnectEvent, 'id'>) {
