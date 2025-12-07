@@ -14,14 +14,12 @@
     
     <div class="action-buttons">
       <button 
-        class="btn primary" 
-        @click="handleSignUp"
-        :disabled="isSigningUp || isAlreadySignedUp"
-      >
-        <span v-if="isSigningUp">Processing...</span>
-        <span v-else-if="isAlreadySignedUp">Signed Up ✅</span>
-        <span v-else>Sign Up</span>
-      </button>
+      class="btn primary" 
+      @click="handleSignUp"
+      :disabled="buttonState.disabled"
+    >
+      {{ buttonState.text }}
+    </button>
 
       <button class="btn secondary">Share</button>
     </div>
@@ -47,61 +45,61 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
-import { useEventsStore } from '~~/stores/events'; // Adjust path if needed
+import { computed } from 'vue';
+import { useAuthStore } from '~~/stores/auth';
+import { useEventsStore } from '~~/stores/events';
 
 const props = defineProps({ item: { type: Object, required: true } })
-
 const eventsStore = useEventsStore();
+const auth = useAuthStore();
 const isSigningUp = ref(false);
 
-// --- MOCK USER DATA (REPLACE THIS WITH YOUR AUTH STORE) ---
-// const authStore = useAuthStore();
-// const currentUser = authStore.user;
-const currentUser = {
-  id: 101, 
-  name: "Jane Doe",
-  email: "jane@example.com"
-};
 // ---------------------------------------------------------
 
-// Check if current user is already in the attendees list
 const isAlreadySignedUp = computed(() => {
-  if (!props.item.attendees) return false;
-  return props.item.attendees.some(a => a.volunteerId === currentUser.id);
+  if (!props.item.attendees || !auth.profile) return false;
+  return props.item.attendees.some(a => a.volunteerId === auth.profile?.id);
+});
+
+// Computed property to handle button state
+const buttonState = computed(() => {
+  if (!auth.isAuthInitialized) return { disabled: true, text: 'Loading...' }; // ⏳ Wait for Auth
+  if (isSigningUp.value)       return { disabled: true, text: 'Processing...' };
+  if (isAlreadySignedUp.value) return { disabled: true, text: 'Signed Up ✅' };
+  return { disabled: false, text: 'Sign Up' };
 });
 
 async function handleSignUp() {
-  // 1. Handle External Events (Mobilize)
   if (props.item.isExternal) {
     window.open(props.item.externalUrl, '_blank');
     return;
   }
 
-  // 2. Handle Internal Events
+  // Double check auth
+  if (!auth.profile) {
+    alert("Please log in to sign up.");
+    return;
+  }
+
   isSigningUp.value = true;
   
   try {
-    // Construct the VolunteerAttendance object based on your Types
+    // USE A PLAIN OBJECT HERE
     const volunteerPayload = {
-      volunteerId: currentUser.id,
-      name: currentUser.name,
-      email: currentUser.email,
+      volunteerId: auth.profile.id,
+      name: auth.profile.name,
+      email: auth.profile.email,
       checkInTime: null,
       checkOutTime: null,
       hoursVerified: false,
       verificationLetterSent: false
     };
 
-    // Call the store action
     await eventsStore.signUpVolunteer(props.item.id, volunteerPayload);
-    
-    // Optional: Show a toast/alert
-    console.log("Signup successful!");
     
   } catch (error) {
     console.error("Error signing up:", error);
-    alert("Failed to sign up. Please try again.");
+    alert("Failed to sign up.");
   } finally {
     isSigningUp.value = false;
   }
