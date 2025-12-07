@@ -58,9 +58,10 @@ function generateCSV(reportData: any): string {
   // Individual volunteers
   if (reportData.perUserSummaries.length > 0) {
     lines.push('Individual Volunteers')
-    lines.push('Email,Events,Total Hours')
+    lines.push('Name,Email,Events,Total Hours')
     reportData.perUserSummaries.forEach((user: any) => {
-      lines.push(`"${user.email || user.userId}",${user.totalEvents},${user.totalHours.toFixed(1)}`)
+      const name = user.name || ''
+      lines.push(`"${name}","${user.email || user.userId}",${user.totalEvents},${user.totalHours.toFixed(1)}`)
     })
     lines.push('')
   }

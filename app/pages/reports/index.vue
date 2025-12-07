@@ -372,6 +372,28 @@
               <span class="value">${{ (reportPreviewData.totalHours * 25).toFixed(2) }}</span>
             </div>
           </div>
+
+          <div v-if="reportVolunteers.length" class="preview-volunteers">
+            <h4>Volunteer Summary</h4>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Events</th>
+                  <th>Total Hours</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="vol in reportVolunteers" :key="vol.userId">
+                  <td>{{ vol.name || vol.email || vol.userId }}</td>
+                  <td>{{ vol.email || 'N/A' }}</td>
+                  <td>{{ vol.totalEvents }}</td>
+                  <td>{{ vol.totalHours.toFixed(1) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
@@ -382,6 +404,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useAuthStore } from '~~/stores/auth'
 import { useOrgStore } from '~~/stores/orgs'
+import type { OrgReportData, PerUserSummary } from '~~/types'
 import { getFirestore, collection, query, where, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore'
 
 const authStore = useAuthStore()
@@ -400,7 +423,7 @@ const selectedOrgId = ref('')
 const isGeneratingReport = ref(false)
 const reportError = ref('')
 const reportSuccess = ref('')
-const reportPreviewData = ref<any>(null)
+const reportPreviewData = ref<OrgReportData | null>(null)
 const isLoading = ref(true)
 const isLoadingAnalytics = ref(false)
 const upcomingEvents = ref<any[]>([])
@@ -444,6 +467,10 @@ const userOrganizations = computed(() => {
   return orgStore.allOrganizations || []
 })
 
+const reportVolunteers = computed<PerUserSummary[]>(() => {
+  return reportPreviewData.value?.perUserSummaries || []
+})
+
 // Methods
 function getTabIcon(tab: string) {
   const icons: Record<string, string> = {
@@ -464,8 +491,9 @@ function getDateString(date: Date): string {
   return dateStr || ''
 }
 
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('en-US', {
+function formatDate(dateInput: string | Date): string {
+  const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput
+  return date.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric'
@@ -1285,6 +1313,10 @@ onMounted(async () => {
   border-radius: 0.5rem;
   padding: 1.5rem;
   margin-top: 2rem;
+}
+
+.preview-volunteers {
+  margin-top: 1.5rem;
 }
 
 .preview-summary {

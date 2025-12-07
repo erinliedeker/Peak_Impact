@@ -196,12 +196,12 @@ export async function fetchOrgById(orgId: string): Promise<Org | null> {
 }
 
 /**
- * Fetch user emails from Firebase
+ * Fetch user profiles from Firebase
  */
-async function fetchUserEmails(userIds: string[]): Promise<Map<string, string>> {
+async function fetchUserProfiles(userIds: string[]): Promise<Map<string, { email?: string; name?: string }>> {
   try {
     const db = getFirestore()
-    const userMap = new Map<string, string>()
+    const userMap = new Map<string, { email?: string; name?: string }>()
     
     if (userIds.length === 0) return userMap
     
@@ -217,20 +217,20 @@ async function fetchUserEmails(userIds: string[]): Promise<Map<string, string>> 
           
           if (userSnap.exists()) {
             const data = userSnap.data()
-            userMap.set(userId, data.email || `User ${userId}`)
+            userMap.set(userId, { email: data.email || `User ${userId}`, name: data.name || undefined })
           } else {
-            userMap.set(userId, `User ${userId}`)
+            userMap.set(userId, { email: `User ${userId}` })
           }
         } catch (error) {
-          console.warn(`[fetchUserEmails] Could not fetch user ${userId}:`, error)
-          userMap.set(userId, `User ${userId}`)
+          console.warn(`[fetchUserProfiles] Could not fetch user ${userId}:`, error)
+          userMap.set(userId, { email: `User ${userId}` })
         }
       }
     }
     
     return userMap
   } catch (error) {
-    console.error('[fetchUserEmails] Error fetching user emails:', error)
+    console.error('[fetchUserProfiles] Error fetching user profiles:', error)
     return new Map()
   }
 }
@@ -256,15 +256,19 @@ async function buildPerUserSummaries(attendance: AttendanceRecord[]): Promise<Pe
 
   // Fetch user emails from Firebase
   const userIds = Array.from(userMap.keys())
-  const emailMap = await fetchUserEmails(userIds)
+  const profileMap = await fetchUserProfiles(userIds)
 
   // Convert to array of summaries
-  return Array.from(userMap.entries()).map(([userId, stats]) => ({
-    userId,
-    email: emailMap.get(userId) || `User ${userId}`,
-    totalHours: stats.totalHours,
-    totalEvents: stats.eventIds.size
-  }))
+  return Array.from(userMap.entries()).map(([userId, stats]) => {
+    const profile = profileMap.get(userId)
+    return {
+      userId,
+      name: profile?.name,
+      email: profile?.email || `User ${userId}`,
+      totalHours: stats.totalHours,
+      totalEvents: stats.eventIds.size
+    }
+  })
 }
 
 /**
