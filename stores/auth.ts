@@ -58,11 +58,12 @@ export const useAuthStore = defineStore('auth', {
       if (process.server) return; // Ensure this only runs on client
 
       // Disable Firebase auth persistence - use session storage only (clears on browser close)
-      const auth = useFirebaseAuth();
+     const auth = useFirebaseAuth();
       if (auth) {
-        const { setPersistence, browserSessionPersistence } = await import('firebase/auth');
+        const { setPersistence, browserLocalPersistence } = await import('firebase/auth'); 
+        // Changed from browserSessionPersistence to browserLocalPersistence
         try {
-          await setPersistence(auth, browserSessionPersistence);
+          await setPersistence(auth, browserLocalPersistence);
         } catch (error) {
           console.error('[AuthStore] Failed to set persistence:', error);
         }
