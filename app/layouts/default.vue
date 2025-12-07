@@ -18,17 +18,15 @@
 <style scoped>
 .app-container {
   display: grid;
-  /* Updated to 309px to match your preferred sidebar width */
   grid-template-columns: 309px 1fr; 
   height: 100vh;
   overflow: hidden;
-  background-color: var(--color-bg); /* Kept your bg color */
+  background-color: var(--color-bg); 
 }
 
 .sidebar-wrapper {
-  /* This ensures the wrapper stays 309px and handles its own scrolling */
   overflow-y: auto;
-  border-right: 1px solid var(--color-border); /* Optional: visual separation */
+  border-right: 1px solid var(--color-border);
 }
 
 .main-column {

@@ -22,6 +22,11 @@
         <span class="label">Organizations</span>
       </NuxtLink>
 
+      <NuxtLink to="/network" class="nav-item" active-class="active">
+        <Icon name="heroicons:users-solid" class="icon" />
+        <span class="label">My Network</span>
+      </NuxtLink>
+
       <NuxtLink to="/my-events" class="nav-item" active-class="active">
         <Icon name="heroicons:ticket-solid" class="icon" />
         <span class="label">My Events</span>
