@@ -48,7 +48,8 @@ export interface ConnectEvent {
     location: GeoLocation | string; 
     
     date: string;
-    time: string;
+    start: string | null;
+    end: string | null
     
     category: 'PublicSafety' | 'Environment' | 'Youth' | 'Arts' | 'Social' | string;
     

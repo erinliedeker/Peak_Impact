@@ -55,8 +55,55 @@ export const useEventsStore = defineStore('events', {
                 }
 
                 let externalEvents: ConnectEvent[] = [];
-                // ... (Mobilize mapping logic)
+                if (mobilizeResult.status === 'fulfilled') {
+                    const response: any = mobilizeResult.value;
+                    
+                    // Check if response.data exists (Mobilize format)
+                    if (response?.data && Array.isArray(response.data)) {
+                        externalEvents = response.data.map((mEvent: any) => {
+                            // Map Mobilize JSON to ConnectEvent interface
+                            const nextTimeslot = mEvent.timeslots?.[0];
+                            const startTime = nextTimeslot ? new Date(nextTimeslot.start_date * 1000) : new Date();
 
+                            return {
+                                // Prefix ID to prevent collisions with Firestore IDs
+                                id: `mobilize-${mEvent.id}`,
+                                title: mEvent.title,
+                                description: mEvent.description || mEvent.summary,
+                                category: 'Social', // Default category (Mobilize tags are unstructured)
+
+
+
+                                // Mobilize gives a string or object for venue. We map it to string for display.
+                                // Note: Ensure your UI handles `location` as (GeoLocation | string)
+                                location: mEvent.location?.venue || 'Virtual/Online',
+
+                                date: startTime.toISOString(),
+                                time: startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+
+                                // Flag as external
+                                isExternal: true,
+                                externalUrl: mEvent.browser_url,
+                                imageUrl: mEvent.featured_image_url || undefined,
+
+                                // Defaults for required internal fields
+                                organizationId: 'mobilize-us',
+                                organizationName: mEvent.sponsor?.name || 'Mobilize Partner',
+                                volunteersNeeded: 100, // Arbitrary default
+                                volunteersSignedUp: 0,
+                                isMicroProject: false,
+                                suppliesNeeded: [],
+                                attendees: [],
+                                createdAt: new Date(mEvent.created_date * 1000).toISOString()
+                            } as unknown as ConnectEvent;
+                        });
+                    }
+                } else {
+                    console.error("Mobilize API Error:", mobilizeResult.reason);
+                    // We don't block the UI if external events fail
+                }
+
+                // 4. Merge and Sort by Date (Nearest date first)
                 const mergedEvents = [...localEvents, ...externalEvents].sort((a, b) => {
                     const dateA = new Date(a.date).getTime();
                     const dateB = new Date(b.date).getTime();
