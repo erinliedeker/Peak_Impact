@@ -247,7 +247,7 @@ async function handleGoogleSignIn() {
       await updateProfile(user, { displayName: user.displayName })
     }
 
-    router.push('/')
+    router.push('/feed')
   } catch (err) {
     console.error(err)
     error.value = err.message
