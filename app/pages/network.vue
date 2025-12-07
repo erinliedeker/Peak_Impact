@@ -498,6 +498,7 @@ function formatActivityTime(createdAt: any): string {
   max-width: 1200px;
   margin: 0 auto;
   padding: 1rem 1.5rem;
+  overflow-y: scroll;
 }
 
 .text-orange { color: var(--color-accent); }
