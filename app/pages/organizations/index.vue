@@ -26,8 +26,13 @@
       </div>
     </header>
 
-    <div v-if="orgStore.isLoading" class="loading">
-      Loading community partners...
+    <div v-if="isLoading" class="loading status-message loading-box">
+      <p>Loading community partners...</p>
+    </div>
+
+    <div v-else-if="error" class="status-message error-box">
+        <p>🔴 {{ error }}</p>
+        <button @click="fetchOrganizations()">Try Again</button>
     </div>
 
     <div v-else class="org-grid">
@@ -38,7 +43,7 @@
       />
       
       <div v-if="filteredOrgs.length === 0" class="empty-state">
-        <p>No organizations found matching your search.</p>
+        <p>No organizations found matching your search ({{ allOrganizations.length }} total loaded).</p>
         <button @click="resetFilters" class="reset-btn">Clear Filters</button>
       </div>
     </div>
@@ -46,21 +51,28 @@
   </div>
 </template>
 
-<script setup>
-import { useOrgStore } from '../stores/orgs';
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue' // <-- Import necessary Vue features
+import { storeToRefs } from 'pinia'
+import { useOrgStore } from '~~/stores/orgs' // Adjust path if necessary
 
-const orgStore = useOrgStore();
-const searchQuery = ref('');
-const selectedType = ref('All');
+// Store Setup
+const orgStore = useOrgStore()
+const { allOrganizations, isLoading, error } = storeToRefs(orgStore)
+const { fetchOrganizations } = orgStore // Only need fetch, follow logic moves to OrgCard
 
-// Fetch data when page loads
+// Local State for Filtering
+const searchQuery = ref('')
+const selectedType = ref('All')
+
+// 4. Trigger the data fetching action when the component is mounted/initialized
 onMounted(() => {
-  orgStore.fetchOrganizations();
-});
+    fetchOrganizations("") 
+})
 
-// Filter Logic
+// Filter Logic: Filters the allOrganizations list based on user input
 const filteredOrgs = computed(() => {
-  let list = orgStore.allOrganizations;
+  let list = allOrganizations.value; // Access the reactive value
 
   // 1. Filter by Type
   if (selectedType.value !== 'All') {
@@ -86,9 +98,14 @@ const resetFilters = () => {
 </script>
 
 <style scoped>
+/*
+  Merged styles: Combining the general cleanup from the second component 
+  with the necessary status styles from the first.
+*/
 .orgs-page {
   max-width: 1200px;
   margin: 0 auto;
+  padding: 0 1rem;
 }
 
 .page-header {
@@ -96,7 +113,7 @@ const resetFilters = () => {
   background: white;
   padding: 2rem;
   border-radius: 12px;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-border, #e2e8f0);
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
@@ -107,11 +124,11 @@ const resetFilters = () => {
 .header-content h1 {
   font-size: 1.75rem;
   margin-bottom: 0.5rem;
-  color: var(--color-primary);
+  color: var(--color-primary, #3182ce);
 }
 
 .header-content p {
-  color: var(--color-text-sub);
+  color: var(--color-text-sub, #718096);
 }
 
 .controls {
@@ -125,7 +142,7 @@ const resetFilters = () => {
 
 .search-box input {
   padding: 10px 10px 10px 36px;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-border, #e2e8f0);
   border-radius: 8px;
   min-width: 250px;
 }
@@ -135,15 +152,15 @@ const resetFilters = () => {
   left: 10px;
   top: 50%;
   transform: translateY(-50%);
-  color: var(--color-text-sub);
+  color: var(--color-text-sub, #718096);
 }
 
 .type-filter {
   padding: 10px;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-border, #e2e8f0);
   border-radius: 8px;
   background: white;
-  color: var(--color-text-main);
+  color: var(--color-text-main, #2d3748);
   cursor: pointer;
 }
 
@@ -153,28 +170,39 @@ const resetFilters = () => {
   gap: 1.5rem;
 }
 
+/* Status and Loading */
+.loading-box {
+  text-align: center;
+  padding: 4rem;
+  color: var(--color-text-sub, #718096);
+}
+
+.error-box {
+    margin: 2rem 0;
+    padding: 1rem;
+    border-radius: 8px;
+    color: #E53E3E;
+    background-color: #FED7D7;
+    border: 1px solid #E53E3E;
+    text-align: center;
+}
+
 .empty-state {
   grid-column: 1 / -1;
   text-align: center;
   padding: 4rem;
   background: white;
   border-radius: 12px;
-  border: 1px dashed var(--color-border);
-  color: var(--color-text-sub);
+  border: 1px dashed var(--color-border, #e2e8f0);
+  color: var(--color-text-sub, #718096);
 }
 
 .reset-btn {
   margin-top: 1rem;
   padding: 8px 16px;
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
+  background: var(--color-bg, #f7fafc);
+  border: 1px solid var(--color-border, #e2e8f0);
   border-radius: 6px;
   cursor: pointer;
-}
-
-.loading {
-  text-align: center;
-  padding: 4rem;
-  color: var(--color-text-sub);
 }
 </style>
