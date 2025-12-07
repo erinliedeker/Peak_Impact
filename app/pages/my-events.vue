@@ -31,6 +31,11 @@
             {{ userStats.impactScore }}
           </div>
         </div>
+        <div class="stat-card button-card">
+          <button class="btn" @click="generatePdf()">
+            Generate Volunteering Summary
+          </button>
+        </div>
       </header>
 
       <div class="content-window">
@@ -145,6 +150,10 @@ const activeYear = ref(today.getFullYear())
 const activeMonth = ref(today.getMonth()) 
 const weekDays = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
 const selectedEvent = ref(null)
+
+async function generatePdf() {
+  
+}
 
 // --- Fetch Logic ---
 watchEffect(async () => {
@@ -344,8 +353,8 @@ function goToEventPage(ev) {
 
 /* Stats Bar */
 .stats-bar {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr); /* Changed to 4 columns */
+  display: flex;
+  flex-direction: row;
   gap: 16px;
   width: 100%;
 }
@@ -360,6 +369,21 @@ function goToEventPage(ev) {
   align-items: flex-start;
   border: 1px solid var(--color-border, #e5e7eb);
 }
+
+.stat-card.button-card {
+  background: var(--color-secondary);
+  padding: 0;
+  .btn {
+    height: 100%;
+    width: 100%;
+    background-color: var(--color-secondary);
+    color: white;
+    font-weight: 600;
+    text-transform: uppercase;
+    border: none;
+  }
+}
+
 
 .stat-card.highlight {
   background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%);
