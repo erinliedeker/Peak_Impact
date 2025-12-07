@@ -114,6 +114,43 @@ export const useEventsStore = defineStore('events', {
             }
         },
 
+        /**
+         * Updates an existing event in the DB and local state.
+         * @param updatedData - Partial event object, but MUST include the ID.
+         */
+        async updateEvent(updatedData: Partial<ConnectEvent> & { id: string | number }) {
+            this.isLoading = true;
+            this.error = null;
+
+            try {
+                // 1. Update in Firestore
+                await EventService.update(updatedData.id, updatedData);
+
+                // 2. Helper to update a specific list in place
+                const updateLocalList = (list: ConnectEvent[]) => {
+                    const index = list.findIndex(e => e.id === updatedData.id);
+                    if (index !== -1) {
+                        // FIX: Add 'as ConnectEvent' at the end
+                        list[index] = { 
+                            ...list[index], 
+                            ...updatedData 
+                        } as ConnectEvent; 
+                    }
+                };
+
+                // 3. Apply updates to both lists
+                updateLocalList(this.allEvents);
+                updateLocalList(this.organizationEvents);
+
+            } catch (err: any) {
+                console.error("Event Update Error:", err);
+                this.error = "Failed to update event.";
+                throw err;
+            } finally {
+                this.isLoading = false;
+            }
+        },
+
         // --- ATTENDANCE ACTIONS (Updated to handle string|number IDs) ---
 
         /**
@@ -164,6 +201,7 @@ export const useEventsStore = defineStore('events', {
         async generateVerificationLetter(eventId: string | number, volunteerId: number) {
             const event = this.allEvents.find(e => e.id === eventId);
             const record = event?.attendees.find(a => a.volunteerId === volunteerId);
+            console.log("Generating verification letter for record:", record);
 
             if (record && record.hoursVerified && !record.verificationLetterSent) {
                 const checkIn = new Date(record.checkInTime!);
@@ -176,6 +214,8 @@ export const useEventsStore = defineStore('events', {
                 // TODO: API call to generate and email/download the PDF based on letterContent
                 
                 record.verificationLetterSent = true;
+                alert(`Verification email sent to ${record.volunteerName}: ${totalHours} hours.`);    
+
                 console.log(`Verification letter generated for ${record.volunteerName}: ${totalHours} hours.`);
             }
         },
