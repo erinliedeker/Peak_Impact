@@ -410,14 +410,14 @@ userHours.value = 42.5
 
 <style scoped>
 .feed-page {
+  height: 100%;
   display: grid;
   grid-template-columns: 280px 1fr;
   gap: 2rem;
   max-width: 1400px;
   margin: 0 auto;
   padding: 2rem;
-  background: #f5f5f5;
-  min-height: 100vh;
+  background: var(--color-bg-light);
 }
 
 /* ============ SIDEBAR ============ */

@@ -101,19 +101,16 @@ const resetFilters = () => {
 };
 </script>
 <style scoped>
-/* (Styles remain exactly the same as your previous version) */
 .orgs-page {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 1rem;
+  width: 100%;
+  height: 100%;
 }
 
 .page-header {
   margin-bottom: 2rem;
   background: white;
   padding: 2rem;
-  border-radius: 12px;
-  border: 1px solid var(--color-border, #e2e8f0);
+  border-bottom: 1px solid var(--color-border, #e2e8f0);
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
@@ -168,6 +165,7 @@ const resetFilters = () => {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 1.5rem;
+  padding: 0rem 1.5rem;
 }
 
 /* Status and Loading */
