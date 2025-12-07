@@ -164,7 +164,7 @@
                       <img :src="post.authorAvatar" class="avatar-sm" />
                       <div class="feed-meta">
                          <strong>{{ post.authorName }}</strong>
-                         <span class="text-muted">Is feeling {{ post.mood }} • {{ post.timeAgo }}</span>
+                         <span class="text-muted">{{ post.timeAgo }}</span>
                       </div>
                    </div>
                    <p class="feed-body">{{ post.content }}</p>
@@ -173,7 +173,7 @@
                    </div>
                    <div class="feed-actions">
                       <button class="action-btn">
-                        <Icon name="heroicons:hand-thumb-up" /> Like ({{ post.likes }})
+                        <Icon name="heroicons:heart" /> Like ({{ post.likes }})
                       </button>
                    </div>
                 </article>
@@ -231,14 +231,14 @@ const generateMockGroup = (id: string) => {
         activityFeed: [
             { 
                 id: 'p1', authorName: 'Sarah Jenkins', authorAvatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=SJ',
-                timeAgo: '2h ago', mood: 'energized ⚡️',
+                timeAgo: '2h ago',
                 content: 'Awesome turnout for the impromptu litter pick today! We cleared 15 bags in just an hour.',
                 image: 'https://images.unsplash.com/photo-1618477461853-cf6ed80faba5?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80',
                 likes: 24
             },
              { 
                 id: 'p2', authorName: 'Group Automated Bot', authorAvatar: '',
-                timeAgo: '1d ago', mood: 'proud 🏆',
+                timeAgo: '1d ago',
                 content: '🎉 Milestone Reached! The group has collectively passed 4,500 volunteer hours. Keep up the amazing work!',
                 likes: 56
             }
@@ -308,15 +308,19 @@ function formatDate(dateString: string) {
     width: 100%; max-width: 1000px; margin: 0 auto;
     display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 20px;
 }
-.group-identity { display: flex; align-items: center; gap: 20px; color: white; }
+.group-identity { display: flex; align-items: center; gap: 20px; color: white; padding-bottom: 10px;}
 .group-icon-lg {
     width: 80px; height: 80px; border-radius: 16px;
     display: flex; align-items: center; justify-content: center;
     font-size: 2rem; font-weight: 800; color: white;
     box-shadow: 0 4px 15px rgba(0,0,0,0.2); border: 3px solid rgba(255,255,255,0.8);
 }
-.group-title { margin: 0; font-size: 2.2rem; text-shadow: 0 2px 4px rgba(0,0,0,0.3); line-height: 1.1; }
-.group-subtitle { margin: 5px 0 0; opacity: 0.9; display: flex; align-items: center; gap: 6px; }
+.group-title { margin: 0; font-size: 2.2rem; text-shadow: 0 2px 4px rgba(0,0,0,0.3); line-height: 1.1; color: var(--color-white)}
+.group-subtitle { margin: 5px 0 0; opacity: 0.9; display: flex; align-items: center; gap: 6px; color: var(--color-bg)}
+
+.hero-actions {
+	margin-bottom: 10px;
+}
 
 .btn-large { padding: 12px 24px; font-size: 1.1rem; font-weight: 700; border-radius: 12px; border: none; cursor: pointer; transition: all 0.2s; }
 .shadow-btn { box-shadow: 0 4px 15px rgba(var(--color-primary-rgb), 0.4); }
@@ -352,7 +356,7 @@ function formatDate(dateString: string) {
 .meta-tag { background: var(--color-bg-light); color: var(--color-text-muted); padding: 4px 10px; border-radius: 20px; font-size: 0.85rem; font-weight: 500; }
 
 .goal-text { margin-bottom: 10px; font-weight: 500; }
-.progress-container { background: var(--color-bg-light); height: 10px; border-radius: 5px; overflow: hidden; margin-bottom: 8px; }
+.progress-container { background: var(--color-bg-light); height: 100%; border-radius: 5px; overflow: hidden; margin-bottom: 8px; }
 .progress-fill { height: 100%; background: linear-gradient(to right, var(--color-accent), #fcd34d); }
 .progress-labels { display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--color-text-muted); font-weight: 600; }
 
@@ -409,7 +413,7 @@ function formatDate(dateString: string) {
 
 /* Responsive */
 @media (max-width: 900px) {
-    .hero-content { justify-content: center; text-align: center; }
+    .hero-content { justify-content: center; text-align: center;}
     .group-identity { flex-direction: column; gap: 10px; }
     .stats-bar { flex-wrap: wrap; gap: 20px; }
     .layout-grid { grid-template-columns: 1fr; }
