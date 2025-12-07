@@ -74,10 +74,10 @@
                 📷 Add Photo
                 <input type="file" accept="image/*" style="display: none" @change="handlePhotoUpload" />
               </label>
-              <div v-if="postPhoto" class="photo-preview">
+              <div v-if="postPhotoPreview" class="photo-preview">
                 <div class="photo-item">
-                  <img :src="postPhoto" :alt="'Preview'" />
-                  <button @click="postPhoto = null" class="remove-photo">✕</button>
+                  <img :src="postPhotoPreview" :alt="'Preview'" />
+                  <button @click="clearPhoto" class="remove-photo">✕</button>
                 </div>
               </div>
             </div>
@@ -95,8 +95,8 @@
 
           <div class="post-actions">
             <button @click="expandPostForm = false" class="btn-cancel">Cancel</button>
-            <button @click="createPost" class="btn-post" :disabled="!newPostText.trim()">
-              Post
+            <button @click="handleCreatePost" class="btn-post" :disabled="!newPostText.trim() || loading">
+              {{ loading ? 'Posting...' : 'Post' }}
             </button>
           </div>
         </div>
@@ -120,7 +120,7 @@
               <div class="post-meta">
                 <p class="post-author">{{ post.authorName }}</p>
                 <p class="post-time">{{ formatTime(post.timestamp) }}</p>
-                <p v-if="post.organization" class="post-org">@ {{ post.organization }}</p>
+                <p v-if="post.organizationName" class="post-org">@ {{ post.organizationName }}</p>
               </div>
             </div>
           </div>
@@ -129,22 +129,28 @@
           <div class="post-content">
             <p class="post-text">{{ post.text }}</p>
             
-            <div v-if="post.photo" class="post-photo">
-              <img :src="post.photo" :alt="'Post image'" />
+            <div v-if="post.photoUrl" class="post-photo">
+              <img :src="post.photoUrl" :alt="'Post image'" />
             </div>
           </div>
 
           <!-- Post Stats -->
           <div class="post-stats">
-            <span>❤️ {{ post.likes }} likes</span>
-            <span>💬 {{ post.comments }} comments</span>
+            <span>❤️ {{ post.likes.length }} likes</span>
+            <span>💬 {{ post.commentsCount }} comments</span>
           </div>
 
           <!-- Post Actions -->
           <div class="post-actions-row">
-            <button class="action-btn">❤️ Like</button>
+            <button 
+              class="action-btn" 
+              :class="{ liked: isLikedByUser(post) }"
+              @click="handleLike(post)"
+            >
+              {{ isLikedByUser(post) ? '❤️' : '🤍' }} Like
+            </button>
             <button class="action-btn">💬 Comment</button>
-            <button class="action-btn">↗️ Share</button>
+            <button class="action-btn" @click="copyShareLink(post.id)">↗️ Share</button>
           </div>
         </div>
       </div>
@@ -158,74 +164,42 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useAuthStore } from '../../stores/auth'
+import { useFeed } from '../../composables/useFeed'
+import { useCollection } from 'vuefire'
+import type { Post } from '../../types'
 
 const authStore = useAuthStore()
+const { createPost, toggleLike, getAllPostsQuery, getOrgPostsQuery } = useFeed()
 
 // State
 const loading = ref(false)
 const expandPostForm = ref(false)
 const newPostText = ref('')
-const postPhoto = ref<string | null>(null)
+const postPhotoFile = ref<File | null>(null)
+const postPhotoPreview = ref<string | null>(null)
 const postOrg = ref('')
 const selectedOrg = ref<any>(null)
 const userEventCount = ref(0)
 const userHours = ref(0)
 
-// Mock data - replace with real Firestore queries
+// Mock organizations for now - TODO: Replace with real Firestore org data
 const organizations = ref([
   { id: 'org-1', name: 'Mountain View High School' },
   { id: 'org-2', name: 'Community Action Network' },
   { id: 'org-3', name: 'Youth Leadership Initiative' }
 ])
 
-// Mock posts - will replace with real Firestore data
-const feedPosts = ref<Array<{
-  id: string
-  authorId: string
-  authorName: string
-  text: string
-  timestamp: Date
-  photo: string | null
-  organization?: string
-  likes: number
-  comments: number
-}>>([
-  {
-    id: '1',
-    authorId: 'user-2',
-    authorName: 'Sarah Chen',
-    text: 'Just finished volunteering at the community cleanup! Made so many new friends and helped remove over 200 lbs of trash from the park. Feeling great about making a difference! 🌍',
-    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
-    photo: null,
-    organization: 'Mountain View High School',
-    likes: 24,
-    comments: 5
-  },
-  {
-    id: '2',
-    authorId: 'user-3',
-    authorName: 'Marcus Johnson',
-    text: 'Our team just hit 500 volunteer hours! Thanks to everyone who showed up to the food bank drives. Next goal: 1000! 🎯',
-    timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000),
-    photo: null,
-    organization: 'Community Action Network',
-    likes: 45,
-    comments: 12
-  },
-  {
-    id: '3',
-    authorId: 'user-4',
-    authorName: 'Emma Rodriguez',
-    text: 'Mentoring high school students on resume building! It\'s amazing to see them grow and gain confidence. This is why I volunteer! 💪',
-    timestamp: new Date(Date.now() - 8 * 60 * 60 * 1000),
-    photo: null,
-    organization: 'Youth Leadership Initiative',
-    likes: 38,
-    comments: 8
+// Real-time posts from Firestore
+const postsQuery = computed(() => {
+  if (selectedOrg.value?.id) {
+    return getOrgPostsQuery(selectedOrg.value.id)
   }
-])
+  return getAllPostsQuery()
+})
+
+const feedPosts = useCollection<Post>(postsQuery, { ssrKey: 'feed-posts' })
 
 // Computed properties
 const userInitials = computed(() => {
@@ -241,37 +215,62 @@ const userInitials = computed(() => {
 function handlePhotoUpload(event: Event) {
   const input = event.target as HTMLInputElement
   if (input.files?.[0]) {
+    postPhotoFile.value = input.files[0]
+    
+    // Create preview
     const reader = new FileReader()
     reader.onload = (e) => {
-      postPhoto.value = e.target?.result as string
+      postPhotoPreview.value = e.target?.result as string
     }
     reader.readAsDataURL(input.files[0])
   }
 }
 
 // Create new post
-function createPost() {
+async function handleCreatePost() {
   if (!newPostText.value.trim()) return
 
-  const newPost = {
-    id: String(Date.now()),
-    authorId: authStore.profile?.id ? String(authStore.profile.id) : 'current-user',
-    authorName: authStore.profile?.name || 'You',
-    text: newPostText.value,
-    timestamp: new Date(),
-    photo: postPhoto.value,
-    organization: postOrg.value 
-      ? organizations.value.find(o => o.id === postOrg.value)?.name 
-      : undefined,
-    likes: 0,
-    comments: 0
-  }
+  loading.value = true
+  
+  try {
+    const orgData = postOrg.value 
+      ? organizations.value.find(o => o.id === postOrg.value)
+      : null
 
-  feedPosts.value.unshift(newPost)
-  newPostText.value = ''
-  postPhoto.value = null
-  postOrg.value = ''
-  expandPostForm.value = false
+    await createPost(
+      newPostText.value,
+      postPhotoFile.value,
+      orgData?.id || null,
+      orgData?.name || null
+    )
+
+    // Reset form
+    newPostText.value = ''
+    postPhotoFile.value = null
+    postPhotoPreview.value = null
+    postOrg.value = ''
+    expandPostForm.value = false
+  } catch (err: any) {
+    console.error('[Feed] Create post error:', err)
+    alert('Failed to create post: ' + err.message)
+  } finally {
+    loading.value = false
+  }
+}
+
+// Handle like toggle
+async function handleLike(post: Post) {
+  try {
+    await toggleLike(post.id, post.likes)
+  } catch (err: any) {
+    console.error('[Feed] Like error:', err)
+  }
+}
+
+// Check if current user liked a post
+function isLikedByUser(post: Post): boolean {
+  if (!authStore.profile) return false
+  return post.likes.includes(String(authStore.profile.id))
 }
 
 // Format time helper
@@ -302,12 +301,25 @@ function getInitials(name: string): string {
     .toUpperCase()
 }
 
-// Initialize
-onMounted(() => {
-  // Set sample stats
-  userEventCount.value = 8
-  userHours.value = 42.5
-})
+// Clear photo preview when photo is removed
+function clearPhoto() {
+  postPhotoFile.value = null
+  postPhotoPreview.value = null
+}
+
+// Copy share link to clipboard
+function copyShareLink(postId: string) {
+  const link = `${window.location.origin}/feed?post=${postId}`
+  navigator.clipboard.writeText(link).then(() => {
+    alert('Link copied to clipboard!')
+  }).catch(err => {
+    console.error('Failed to copy link:', err)
+  })
+}
+
+// Set sample stats for now
+userEventCount.value = 8
+userHours.value = 42.5
 </script>
 
 <style scoped>
@@ -792,6 +804,11 @@ onMounted(() => {
 
 .action-btn:active {
   background: #f1f5f9;
+}
+
+.action-btn.liked {
+  color: #ef4444;
+  font-weight: 600;
 }
 
 .loading {
