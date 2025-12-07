@@ -70,16 +70,7 @@
           
           <div class="post-options">
             <div class="file-upload">
-              <label class="upload-btn">
-                📷 Add Photo
-                <input type="file" accept="image/*" style="display: none" @change="handlePhotoUpload" />
-              </label>
-              <div v-if="postPhotoPreview" class="photo-preview">
-                <div class="photo-item">
-                  <img :src="postPhotoPreview" :alt="'Preview'" />
-                  <button @click="clearPhoto" class="remove-photo">✕</button>
-                </div>
-              </div>
+              <!-- Photo upload removed: Firebase Storage not available -->
             </div>
 
             <div class="post-org-select">
@@ -95,8 +86,6 @@
 
           <div class="post-actions">
             <button @click="expandPostForm = false" class="btn-cancel">Cancel</button>
-            <button @click="handleCreatePost" class="btn-post" :disabled="!newPostText.trim() || loading">
-              {{ loading ? 'Posting...' : 'Post' }}
             <button @click="handleCreatePost" class="btn-post" :disabled="!newPostText.trim() || loading">
               {{ loading ? 'Posting...' : 'Post' }}
             </button>
@@ -123,7 +112,6 @@
                 <p class="post-author">{{ post.authorName }}</p>
                 <p class="post-time">{{ formatTime(post.timestamp) }}</p>
                 <p v-if="post.organizationName" class="post-org">@ {{ post.organizationName }}</p>
-                <p v-if="post.organizationName" class="post-org">@ {{ post.organizationName }}</p>
               </div>
             </div>
           </div>
@@ -132,15 +120,11 @@
           <div class="post-content">
             <p class="post-text">{{ post.text }}</p>
             
-            <div v-if="post.photoUrl" class="post-photo">
-              <img :src="post.photoUrl" :alt="'Post image'" />
-            </div>
+            <!-- Photo display removed: Firebase Storage not available -->
           </div>
 
           <!-- Post Stats -->
           <div class="post-stats">
-            <span>❤️ {{ post.likes.length }} likes</span>
-            <span>💬 {{ post.commentsCount }} comments</span>
             <span>❤️ {{ post.likes.length }} likes</span>
             <span>💬 {{ post.commentsCount }} comments</span>
           </div>
@@ -213,9 +197,6 @@ import { useAuthStore } from '../../stores/auth'
 import { useFeed } from '../../composables/useFeed'
 import { useCollection } from 'vuefire'
 import type { Post } from '../../types'
-import { useFeed } from '../../composables/useFeed'
-import { useCollection } from 'vuefire'
-import type { Post } from '../../types'
 
 const authStore = useAuthStore()
 const { createPost, toggleLike, addComment, getAllPostsQuery, getOrgPostsQuery } = useFeed()
@@ -225,8 +206,7 @@ const db = useFirestore()
 const loading = ref(false)
 const expandPostForm = ref(false)
 const newPostText = ref('')
-const postPhotoFile = ref<File | null>(null)
-const postPhotoPreview = ref<string | null>(null)
+// Photo upload state removed: Firebase Storage not available
 const postOrg = ref('')
 const selectedOrg = ref<any>(null)
 const userEventCount = ref(0)
@@ -264,7 +244,7 @@ const feedPosts = computed<Post[]>(() => {
       authorId: doc.authorId || '',
       authorName: doc.authorName || 'User',
       text: doc.text || '',
-      photoUrl: doc.photoUrl || null,
+      // photoUrl removed: Firebase Storage not available
       organizationId: doc.organizationId || null,
       organizationName: doc.organizationName || null,
       timestamp,
@@ -285,22 +265,9 @@ const userInitials = computed(() => {
 })
 
 // Handle photo upload
-function handlePhotoUpload(event: Event) {
-  const input = event.target as HTMLInputElement
-  if (input.files?.[0]) {
-    postPhotoFile.value = input.files[0]
-    
-    // Create preview
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      postPhotoPreview.value = e.target?.result as string
-    }
-    reader.readAsDataURL(input.files[0])
-  }
-}
+// handlePhotoUpload removed: Firebase Storage not available
 
 // Create new post
-async function handleCreatePost() {
 async function handleCreatePost() {
   if (!newPostText.value.trim()) return
 
@@ -313,15 +280,14 @@ async function handleCreatePost() {
 
     await createPost(
       newPostText.value,
-      postPhotoFile.value,
+      null,
       orgData?.id || null,
       orgData?.name || null
     )
 
     // Reset form
     newPostText.value = ''
-    postPhotoFile.value = null
-    postPhotoPreview.value = null
+    // Photo upload state reset removed
     postOrg.value = ''
     expandPostForm.value = false
   } catch (err: any) {
@@ -379,10 +345,7 @@ function getInitials(name: string): string {
 }
 
 // Clear photo preview when photo is removed
-function clearPhoto() {
-  postPhotoFile.value = null
-  postPhotoPreview.value = null
-}
+// clearPhoto removed: Firebase Storage not available
 
 // Copy share link to clipboard
 function copyShareLink(postId: string) {
