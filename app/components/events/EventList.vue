@@ -12,13 +12,13 @@
       >
         <img
           class="avatar"
-          :src="event.organizer?.avatar || defaultAvatar"
-          :alt="`Avatar for ${event.organizer?.name || 'organizer'}`"
+          :src="event.imageUrl || defaultAvatar"
+          :alt="`Avatar for ${event.organizationName || 'organization'}`"
         />
 
         <div class="meta">
-          <div class="name">{{ event.name }}</div>
-          <div class="organizer">By {{ event.organizer?.name || 'Unknown' }}</div>
+          <div class="name">{{ event.title }}</div>
+          <div class="organizer">By {{ event.organizationName || 'Unknown' }}</div>
         </div>
       </li>
     </ul>

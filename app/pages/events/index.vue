@@ -28,6 +28,7 @@ import EventSearchBar from '@/components/events/EventSearchBar.vue'
 import EventList from '@/components/events/EventList.vue'
 import EventCard from '@/components/events/EventCard.vue'
 import { useEventsStore } from '../stores/events.ts'
+import { sl } from 'zod/locales'
 
 const router = useRouter()
 const filters = ref({})
@@ -92,8 +93,11 @@ async function fetchEvents() {
   loading.value = true
   try {
    allEvents.value = await useEventsStore().fetchEvents()
-   console.log('Fetched events:', allEvents.value)
-   displayedEvents.value = allEvents.value
+   displayedEvents.value = allEvents.value.slice()
+   if(!selectedEvent.value && allEvents.length > 0) {
+    selectedEvent.value = allEvents.value[0]
+   }
+
   } finally {
     loading.value = false
   }

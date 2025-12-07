@@ -46,6 +46,7 @@ export const useEventsStore = defineStore('events', {
                 // 🚀 CHANGE: Use the real service function to fetch data
                 const events = await EventService.getAll();
                 this.allEvents = events;
+                return events;
             } catch (e: any) {
                 this.error = 'Failed to load events: ' + e.message;
             } finally {
