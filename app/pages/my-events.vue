@@ -27,7 +27,7 @@
                   class="event-pill"
                   @click="openEvent(ev)"
                 >
-                  {{ ev.name }}
+                  {{ ev.title }}
                 </li>
               </ul>
             </div>
@@ -37,7 +37,7 @@
 
      <aside class="detail-panel" role="dialog" aria-label="Event details">
         <div v-if="selectedEvent">
-          <h2>{{ selectedEvent.name }}</h2>
+          <h2>{{ selectedEvent.title }}</h2>
           <div class="meta">
             <div>When: {{ formatDate(selectedEvent.date) }}</div>
             <div>Location: {{ selectedEvent.location || '—' }}</div>
@@ -59,8 +59,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { mockEvents, mockOrgs } from '../server/utils/reports/mockData.ts' // mock data for demo
-
+import { useEventsStore } from '../stores/events.ts'
 const today = new Date()
 const activeYear = ref(today.getFullYear())
 const activeMonth = ref(today.getMonth()) // 0 = Jan
@@ -95,16 +94,15 @@ const cells = computed(() => {
 const allEvents = ref([])
 
 onMounted(() => {
-  // map mock events (they use Date objects)
-  allEvents.value = mockEvents.map(ev => ({
-    id: ev.id,
-    name: ev.name,
-    date: ev.date instanceof Date ? ev.date.toISOString() : String(ev.date),
-    location: ev.location || '',
-    organizerName: mockOrgs[ev.org]?.name || '',
-    description: ev.description || ''
-  }))
+  fetchEvents()
 })
+
+async function fetchEvents() {
+  allEvents.value = await useEventsStore().fetchEvents();
+  if(!selectedEvent.value) {
+    selectedEvent.value = allEvents.value[0] || null;
+  }
+}
 
 // return events that fall on the same local day
 function eventsForDay(date) {

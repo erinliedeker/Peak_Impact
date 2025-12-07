@@ -41,7 +41,7 @@
             <label>Category</label>
             <select v-model="filters.category">
               <option value="">All</option>
-              <option value="volunteer">Volunteer</option>
+              <option value="social">Social</option>
               <option value="fundraiser">Fundraiser</option>
               <option value="meeting">Meeting</option>
             </select>
