@@ -57,6 +57,7 @@ export interface Organization {
         instagram: string | null;
         facebook: string | null;
     };
+    interests: string[];
 }
 
 // --- Store State Types ---

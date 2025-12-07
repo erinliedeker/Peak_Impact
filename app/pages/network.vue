@@ -123,7 +123,7 @@
                 />
               </div>
 
-              <NuxtLink :to="`/profile/${friend.id}`" class="btn-profile">
+              <NuxtLink :to="`/volunteers/${friend.id}`" class="btn-profile">
                 View Profile
               </NuxtLink>
             </div>
@@ -242,7 +242,7 @@ const groups = ref([
 const activities = ref([
   { id: 1, name: 'Sarah', initials: 'SJ', action: 'joined', target: 'Downtown District', link: '/groups/101', time: '2h ago' },
   { id: 2, name: 'Mike', initials: 'MR', action: 'is going to', target: 'River Cleanup', link: '/events/202', time: '5h ago' },
-  { id: 3, name: 'Jessica', initials: 'JP', action: 'earned', target: 'Super Star Badge', link: '/profile/3', time: '1d ago' },
+  { id: 3, name: 'Jessica', initials: 'JP', action: 'earned', target: 'Super Star Badge', link: '/volunteers/3', time: '1d ago' },
 ]);
 
 const socialEvents = ref([
