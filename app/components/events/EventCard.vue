@@ -84,6 +84,7 @@ const props = defineProps({ item: { type: Object, required: true } })
 }
 
 .btn{
+  height: 40px;
   padding: 8px 16px;
   border-radius: 6px;
   margin-right: 8px;
