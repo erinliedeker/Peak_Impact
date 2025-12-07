@@ -1,7 +1,7 @@
 <template>
   <div class="org-card">
     <div class="card-banner" :class="org.type.toLowerCase()"></div>
-    
+
     <div class="card-content">
       <NuxtLink :to="`/organizations/${org.id}`" class="org-avatar">
         {{ getInitials(org.name) }}
@@ -12,7 +12,7 @@
       </NuxtLink>
 
       <span class="org-type">{{ formatType(org.type) }}</span>
-      
+
       <p class="org-desc">{{ org.description }}</p>
 
       <div class="org-meta">
@@ -20,19 +20,36 @@
         <span v-if="org.socialLinks.facebook">📘 Facebook</span>
       </div>
 
-      <button 
-        class="follow-btn" 
-        :class="{ active: isFollowing }"
-        @click.stop="toggleFollow"
-      >
-        {{ isFollowing ? 'Following' : 'Follow' }}
-      </button>
+      <div class="button-group">
+        <button class="icon-btn instagram-btn" @click.stop="openInstagram" title="Open Instagram">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+            <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+            <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+          </svg>
+        </button>
+
+        <button class="icon-btn google-btn" @click.stop="openWebSearch" title="Search on Google">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="2" y1="12" x2="22" y2="12"></line>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+          </svg>
+        </button>
+
+        <button v-if="!org.propublica" class="follow-btn" :class="{ active: isFollowing }" @click.stop="toggleFollow">
+          {{ isFollowing ? 'Following' : 'Follow' }}
+        </button>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
 import { useOrgStore } from '../stores/orgs';
+import { computed } from 'vue';
 
 const props = defineProps({
   org: {
@@ -50,6 +67,26 @@ const isFollowing = computed(() => {
 const toggleFollow = () => {
   orgStore.toggleFollowOrg(props.org.id);
 };
+
+const openInstagram = () => {
+  // 1. Check if the direct link exists in the data
+  if (props.org.socialLinks && props.org.socialLinks.instagram) {
+    window.open(props.org.socialLinks.instagram, '_blank');
+  } else {
+    // 2. Fallback: Search specifically for their instagram via Google
+    const nameEncoded = encodeURIComponent(props.org.name + " Colorado Springs");
+    const searchUrl = `https://www.google.com/search?q=site:instagram.com+"${nameEncoded}"`;
+    window.open(searchUrl, '_blank');
+  }
+};
+
+const openWebSearch = () => {
+  // Always perform a broad Google search to find their website/presence
+  const nameEncoded = encodeURIComponent(props.org.name + " Colorado Springs");
+  const searchUrl = `https://www.google.com/search?q=${nameEncoded}`;
+  window.open(searchUrl, '_blank');
+};
+
 
 const getInitials = (name) => name.split(' ').map(n => n[0]).join('').substring(0,2);
 const formatType = (type) => type.replace(/([A-Z])/g, ' $1').trim();
@@ -75,9 +112,18 @@ const formatType = (type) => type.replace(/([A-Z])/g, ' $1').trim();
   height: 60px;
   background-color: #cbd5e0;
 }
-.card-banner.nonprofit { background-color: var(--color-secondary); }
-.card-banner.citydept { background-color: var(--color-primary); }
-.card-banner.neighborhoodgroup { background-color: var(--color-accent); }
+
+.card-banner.nonprofit {
+  background-color: var(--color-secondary);
+}
+
+.card-banner.citydept {
+  background-color: var(--color-primary);
+}
+
+.card-banner.neighborhoodgroup {
+  background-color: var(--color-accent);
+}
 
 .card-content {
   padding: 1.5rem;
@@ -102,9 +148,10 @@ const formatType = (type) => type.replace(/([A-Z])/g, ' $1').trim();
   justify-content: center;
   font-weight: 800;
   color: var(--color-text-main);
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   font-size: 1.2rem;
-  text-decoration: none; /* Removes link underline */
+  text-decoration: none;
+  /* Removes link underline */
   transition: opacity 0.2s;
 }
 
@@ -166,6 +213,86 @@ const formatType = (type) => type.replace(/([A-Z])/g, ' $1').trim();
   border: 1px solid var(--color-primary);
   background: white;
   color: var(--color-primary);
+}
+
+.follow-btn:hover {
+  background: #ebf8ff;
+}
+
+.follow-btn.active {
+  background: var(--color-primary);
+  color: white;
+}
+
+.org-desc {
+  font-size: 0.9rem;
+  color: var(--color-text-sub);
+  line-height: 1.5;
+  margin-bottom: 1.5rem;
+  flex-grow: 1;
+}
+
+.org-meta {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 1.5rem;
+  font-size: 0.8rem;
+  color: var(--color-text-sub);
+}
+
+.button-group {
+  display: flex;
+  gap: 8px; /* Space between buttons */
+  margin-top: auto; 
+}
+
+/* Base style for the new icon buttons */
+.icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px; /* Fixed square size */
+  height: 42px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: white;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-sub);
+}
+
+.icon-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+/* Instagram specific hover colors */
+.instagram-btn:hover {
+  color: #C13584; /* Instagram Brand Color */
+  border-color: #C13584;
+  background: #fdf2f8;
+}
+
+/* Google specific hover colors */
+.google-btn:hover {
+  color: #4285F4; /* Google Blue */
+  border-color: #4285F4;
+  background: #eff6ff;
+}
+
+/* The Follow button takes up remaining space */
+.follow-btn {
+  flex-grow: 1;
+  padding: 0 16px; /* Horizontal padding only */
+  height: 42px; /* Match height of icon buttons */
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid var(--color-primary);
+  background: white;
+  color: var(--color-primary);
+  /* distinct from icon buttons */
 }
 
 .follow-btn:hover {

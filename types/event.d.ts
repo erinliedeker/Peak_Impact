@@ -65,8 +65,11 @@ export interface ConnectEvent {
  * Defines the structure of an Organization or Group profile.
  */
 export interface Organization {
-    id: number;
+    id: string | number; 
+    ein: string | null;
+    admins: string[];
     name: string;
+    propublica: boolean;
     type: 'NonProfit' | 'School' | 'NeighborhoodGroup' | 'CityDept';
     description: string;
     contactEmail: string;
@@ -103,7 +106,7 @@ export interface ImpactState {
 // 3. Organization Store State
 export interface OrgState {
     allOrganizations: Organization[];
-    followedOrganizations: number[]; // Array of organization IDs
+    followedOrganizations: string[]; // Array of organization IDs
     neighborhoodGroups: Organization[];
     isLoading: boolean;
     error: string | null;
