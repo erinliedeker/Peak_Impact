@@ -12,7 +12,7 @@
       >
         <img
           class="avatar"
-          :src="conv.user?.avatar || defaultAvatar"
+          src='~/assets/images/avatar-placeholder.png'
           :alt="`Avatar for ${conv.user?.name || 'user'}`"
         />
 
