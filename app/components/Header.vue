@@ -90,6 +90,7 @@ onUnmounted(() => document.removeEventListener('click', closeDropdowns));
 <style scoped>
 .app-header {
   height: 64px;
+  min-height: 64px;
   background: white;
   border-bottom: 1px solid var(--color-border);
   display: flex;

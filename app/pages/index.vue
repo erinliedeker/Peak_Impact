@@ -1,6 +1,6 @@
 <template>
   <div class="landing-content">
-    <img src="~/assets/images/landing-image.png" class="landing-image" alt="two shaking hands in front of a mountain with the words: peak impact"/>
+    <img class="landing-image" src="~/assets/images/landing-image.png" alt="two shaking hands in front of a mountain with the words: peak impact"/>
   </div>
 </template>
 
@@ -17,27 +17,20 @@
   height: 100%;
   display: flex;
   justify-content: center;
-  align-items: top;
-  background-color: var(--color-primary);
+  background-color: #1b273e;
   box-sizing: border-box;
   overflow: hidden;
 }
 
 .landing-image {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-  display: block;
+  height: 960 px;
+  width: auto;
 }
 
 .left {
   display: flex;
   align-items: center;
   gap: 1rem;
-}
-
-.logo {
-  height: 40px;
 }
 
 .page-title {
