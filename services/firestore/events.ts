@@ -2,7 +2,9 @@
 import { 
     getFirestore, 
     collection, 
-    addDoc, 
+    addDoc,
+    doc,        
+    updateDoc,   
     query, 
     where, 
     getDocs, 
@@ -14,7 +16,6 @@ import type { ConnectEvent } from '~~/types/event';
 // Helper to map Firestore Document to ConnectEvent
 const mapDocToEvent = (doc: DocumentData): ConnectEvent => {
     const data = doc.data();
-    // Ensure all fields are safely mapped with defaults
     return {
         id: doc.id,
         title: data.title || 'Untitled Event',
@@ -49,16 +50,31 @@ export const EventService = {
     },
 
     /**
+     * Update an existing event in Firestore
+     */
+    async update(id: string | number, eventData: Partial<ConnectEvent>): Promise<void> {
+        const db = getFirestore();
+        // Create a reference to the specific document
+        const eventRef = doc(db, 'events', String(id));
+        
+        // Remove the 'id' from the payload to prevent writing it as a field inside the document
+        const { id: _, ...updatePayload } = eventData;
+
+        // Perform the update
+        await updateDoc(eventRef, updatePayload);
+    },
+
+    /**
      * Fetch events created by a specific organization ID.
      */
     async getByOrganizationId(orgId: string | number): Promise<ConnectEvent[]> {
         const db = getFirestore();
         const eventsCollection = collection(db, 'events');
         
-        // Query events where the 'organizationId' field matches the admin's owned organization ID
+        // Query events where the 'organizationId' matches
         const q = query(eventsCollection, where("organizationId", "==", orgId));
         
         const snapshot = await getDocs(q);
         return snapshot.docs.map(mapDocToEvent);
-    }
+    },
 };
