@@ -76,7 +76,7 @@
 </template>
 
 <script setup>
-import { useEventsStore } from '~/stores/events';
+import { useEventsStore } from '../stores/events';
 
 const route = useRoute();
 const eventsStore = useEventsStore();
