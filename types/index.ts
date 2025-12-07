@@ -26,3 +26,14 @@ export type {
   FriendRequest,
   FriendInfo
 } from './friendRequest'
+
+export type {
+  ConnectEvent,
+  VolunteerAttendance,
+  Attendee,
+  GeoLocation,
+  Organization,
+  EventsState,
+  ImpactState,
+  OrgState
+} from './event.d'
