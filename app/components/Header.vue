@@ -73,7 +73,7 @@ const pageTitle = computed(() => {
 
 // Logout Logic
 const handleLogout = () => {
-  auth.logout();
+  auth.logout(false);
   router.push('/');
 };
 

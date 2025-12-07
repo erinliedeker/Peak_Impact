@@ -161,8 +161,7 @@ export const useAuthStore = defineStore('auth', {
         await signOut(auth);
         
         if (shouldRedirect) {
-          const router = useRouter();
-          await router.push('/login');
+           window.location.href = '/'; 
         }
       } catch (err) {
         console.error('[AuthStore] Logout Error:', err);
