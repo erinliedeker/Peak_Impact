@@ -1,6 +1,6 @@
 <template>
   <section class="my-events-page">
-    <div class="content-window">
+    <div v-if="auth.profile" class="content-window">
       <div class="calendar">
         <div class="nav">
           <button class="nav-btn" @click="prevMonth">‹</button>
@@ -54,12 +54,17 @@
         </div>
       </aside>
     </div>
+    <div v-else class="placeholder-page">
+      <p>Please log in to view your events.</p>
+    </div>
   </section>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useEventsStore } from '../stores/events.ts'
+import { useAuthStore } from '~~/stores/auth'
+const auth = useAuthStore()
 const today = new Date()
 const activeYear = ref(today.getFullYear())
 const activeMonth = ref(today.getMonth()) // 0 = Jan
@@ -98,7 +103,7 @@ onMounted(() => {
 })
 
 async function fetchEvents() {
-  allEvents.value = await useEventsStore().fetchMyEvents();
+  allEvents.value = await useEventsStore().fetchMyEvents(auth.profile.id);
   if(!selectedEvent.value) {
     selectedEvent.value = allEvents.value[0] || null;
   }
