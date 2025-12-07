@@ -16,7 +16,7 @@ interface StoreError {
 
 export const useAuthStore = defineStore("auth", {
   // ----------------------------------------------------------------
-  // 💾 State
+  // State
   // ----------------------------------------------------------------
   state: (): AuthState => ({
     isLoggedIn: false,
@@ -28,7 +28,7 @@ export const useAuthStore = defineStore("auth", {
   }),
 
   // ----------------------------------------------------------------
-  // 🔍 Getters
+  // Getters
   // ----------------------------------------------------------------
   getters: {
     isAuthenticated: (state): boolean => state.isLoggedIn,
@@ -43,7 +43,7 @@ export const useAuthStore = defineStore("auth", {
   },
 
   // ----------------------------------------------------------------
-  // ⚡ Actions
+  // Actions
   // ----------------------------------------------------------------
   actions: {
     /**

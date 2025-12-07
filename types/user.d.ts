@@ -11,6 +11,7 @@ export interface UserProfile {
   userType: 'Resident' | 'OrgAdmin' | 'Student'; // Key for authorization and permissions
   neighborhoodId: number | null; // For hyper-local filtering, null if not set
   impactPoints: number; // For gamification/impact tracking
+  joinedGroups: string[]; // Array of Group IDs the user has joined
 }
 
 /**
