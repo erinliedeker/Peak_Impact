@@ -148,7 +148,7 @@
 
 <script setup>
 import { ref } from 'vue'
-import { createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup } from 'firebase/auth'
+import { createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword } from 'firebase/auth'
 import { doc, setDoc, getDoc, addDoc, collection } from 'firebase/firestore' 
 import { globalCategories } from '~~/types/models'
 
@@ -259,7 +259,8 @@ async function createFirestoreProfile(user, userType, isOAuth = false) {
     // 4. Create/Update User Profile in Firestore
     await setDoc(doc(db, "users", user.uid), userData, { merge: true }) // Use merge for safety
 
-    // 5. Redirect
+    // 5. sign in
+    await signInWithEmailAndPassword(auth, user.email, password.value)
     router.push('/feed')
 }
 
@@ -291,7 +292,7 @@ async function handleSignUp() {
     
     // 4. Call the centralized persistence function
     await createFirestoreProfile(user, userType, false)
-    
+
   } catch (err) {
     console.error(err)
     error.value = err.message
