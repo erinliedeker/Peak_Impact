@@ -11,8 +11,8 @@
   height: 100vh;
   height: 100dvh;
   width: 100vw;
-  overflow: clip;
+  /* overflow: clip;
   overscroll-behavior: contain;
-  position: fixed;
+  position: fixed; */
 }
 </style>

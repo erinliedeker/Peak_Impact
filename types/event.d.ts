@@ -22,7 +22,7 @@ export interface ConnectEvent {
     description: string;
     organizationId: string | number;
     organizationName: string;
-    // location: GeoLocation;
+    location: GeoLocation;
     date: string;
     time: string;
     category: 'PublicSafety' | 'Environment' | 'Youth' | 'Arts' | 'Social';
@@ -31,7 +31,7 @@ export interface ConnectEvent {
     isMicroProject: boolean;
     suppliesNeeded: string[];
     // NEW: Array to track all volunteers for the event
-    // attendees: VolunteerAttendance[]; 
+    attendees: VolunteerAttendance[]; 
     createdAt: string;
 }
 
