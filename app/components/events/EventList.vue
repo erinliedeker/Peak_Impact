@@ -1,10 +1,15 @@
 <template>
   <div class="event-list" role="list" aria-label="Event list">
-    <div v-if="events.length === 0" class="empty">No events match the current filters.</div>
+
+    <div v-if="loading" class="loading-container">
+      <div class="spinner"></div>
+      <p>Loading events...</p>
+    </div>
+    <div v-else-if="sortedEvents.length === 0" class="empty">No events match the current filters.</div>
 
     <ul v-else class="list" role="list">
       <li
-        v-for="event in events"
+        v-for="event in sortedEvents"
         :key="event.id"
         :class="['event-item', { 'selected': event.id === activeId}]"
         role="listitem"
@@ -14,6 +19,7 @@
           <Icon :name="getCategoryIcon(event.category)" class="category-icon" />
         </div>
         <div class="meta">
+          <div class="date-time">{{ formatDate(event.date) }}</div>
           <div class="name">{{ event.title }}</div>
           <div class="organizer">By {{ event.organizationName || 'Unknown' }}</div>
         </div>
@@ -23,12 +29,28 @@
 </template>
 
 <script setup>
+import { ref, computed } from 'vue'
 // Assuming you have an Icon component imported here or globally available
-// import { Icon } from '#components' // Example import if needed
+// import { Icon } from '#components' 
 
 const props = defineProps({
-  events: { type: Array, default: () => [] },
-  defaultAvatar: { type: String, default: '/assets/avatar-placeholder.png' }
+  events: { 
+    type: Array, 
+    default: () => [] 
+  },
+  loading: { 
+    type: Boolean, 
+    default: false 
+  },
+  // Corrected the type to Date and default to a Date instance
+  date: { 
+    type: Date, 
+    default: () => new Date() 
+  }, 
+  defaultAvatar: { 
+    type: String, 
+    default: '/assets/avatar-placeholder.png' 
+  }
 })
 
 const internalSelected = ref(null)
@@ -38,23 +60,51 @@ function onClick(event) {
   internalSelected.value = event.id
 }
 
-// --- Category Icon Logic ---
+/**
+ * Sorting Logic: Sorts events by their date property in ascending order.
+ * Assumes each event object has a 'date' property that can be compared (e.g., a Date object or ISO string).
+ */
+const sortedEvents = computed(() => {
+  // If loading or no events, return empty array immediately
+  if (props.loading || props.events.length === 0) {
+    return []
+  }
+
+  // Use a shallow copy to avoid mutating the original prop
+  return [...props.events].sort((a, b) => {
+    const dateA = new Date(a.date)
+    const dateB = new Date(b.date)
+    return dateA - dateB
+  })
+})
+
+
+// --- Utility Functions ---
+
+function formatDate(dateString) {
+  const date = new Date(dateString);
+  // Example formatting: "Mar 15, 2026, 10:00 AM"
+  return date.toLocaleString('en-US', { 
+    month: 'short', 
+    day: 'numeric', 
+    year: 'numeric', 
+    hour: '2-digit', 
+    minute: '2-digit' 
+  });
+}
 
 function getCategoryIcon(category) {
-  // Use category names defined in your event structure
   switch (category) {
     case 'Environment': return 'heroicons:tree';
     case 'Social': return 'heroicons:hand-raised';
     case 'PublicSafety': return 'heroicons:shield-check';
     case 'Youth': return 'heroicons:user-group';
     case 'Arts': return 'heroicons:paint-brush';
-    // Add more cases as needed for other categories
-    default: return 'heroicons:sparkles'; // Default generic icon
+    default: return 'heroicons:sparkles'; 
   }
 }
 
 function getCategoryClass(category) {
-    // Converts categories like 'PublicSafety' to 'publicsafety' for CSS matching
     return (category || 'default').toLowerCase();
 }
 </script>
@@ -79,15 +129,17 @@ function getCategoryClass(category) {
 
 .event-item {
   width: 100%;
-  min-height: 5rem;
+  /* Increased min-height for bigger cards */
+  min-height: 6.5rem; 
   display: flex;
   align-items: center;
   cursor: pointer;
   transition: background .12s ease;
   background-color: var(--color-white);
   border-bottom: 1px solid var(--color-border);
-  padding: 8px 12px;
-  gap: 12px;
+  /* Increased padding */
+  padding: 16px 18px; 
+  gap: 16px; /* Increased gap */
   box-sizing: border-box;
 }
 
@@ -99,42 +151,55 @@ function getCategoryClass(category) {
 
 /* --- ICON STYLING --- */
 
-/* Replaced <img> styles with a container for the icon */
 .avatar {
-  width: 44px;
-  height: 44px;
+  /* Slightly increased avatar size */
+  width: 52px;
+  height: 52px;
   border-radius: 999px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  color: white; /* Icon color */
+  color: white; 
   border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .category-icon {
-  width: 24px;
-  height: 24px;
+  width: 28px; /* Slightly larger icon */
+  height: 28px;
 }
 
-/* Category-specific colors for the background */
-.avatar.environment { background-color: #10B981; } /* Green */
-.avatar.social { background-color: #3B82F6; }      /* Blue */
-.avatar.publicsafety { background-color: #F59E0B; } /* Orange */
-.avatar.youth { background-color: #8B5CF6; }        /* Purple */
-.avatar.arts { background-color: #EC4899; }         /* Pink */
-.avatar.default { background-color: #6B7280; }      /* Gray fallback */
+/* Category-specific colors remain the same */
+.avatar.environment { background-color: #10B981; } 
+.avatar.social { background-color: #3B82F6; }      
+.avatar.publicsafety { background-color: #F59E0B; } 
+.avatar.youth { background-color: #8B5CF6; }        
+.avatar.arts { background-color: #EC4899; }         
+.avatar.default { background-color: #6B7280; }      
 
-/* --- END ICON STYLING --- */
+/* --- METADATA STYLING --- */
+
+.meta {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.meta .date-time {
+    font-size: 12px;
+    font-weight: 500;
+    color: #4B5563; /* Slightly darker grey for date */
+    margin-bottom: 4px;
+}
 
 .meta .name {
-  font-weight: 600;
-  font-size: 14px;
+  font-weight: 700; /* Bolder title */
+  font-size: 16px; /* Larger title font */
   color: #111827;
 }
 
 .meta .organizer {
-  font-size: 13px;
+  font-size: 14px; /* Larger organizer font */
   color: #6b7280;
   margin-top: 2px;
 }
@@ -143,5 +208,31 @@ function getCategoryClass(category) {
   padding: 12px;
   text-align: center;
   color: #6b7280;
+}
+
+/* --- LOADING STYLES --- */
+
+.loading-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #6b7280;
+}
+
+.spinner {
+  border: 4px solid rgba(0, 0, 0, 0.1);
+  border-top: 4px solid #3B82F6; 
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 </style>

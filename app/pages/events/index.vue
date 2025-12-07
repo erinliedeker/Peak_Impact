@@ -8,9 +8,10 @@
     </div>
     <div class="content-window">
       <div class="event-list-container">
-        <EventList class="event-list"
-        :events="displayedEvents" 
-        @select="openEvent"
+        <EventList 
+          class="event-list"
+          :events="displayedEvents" 
+          :loading="loading" @select="openEvent"
         />
       </div>
       <div class="event-card-container">
@@ -21,8 +22,7 @@
       </div>
     </div>
   </div>  
-  <div v-if="loading" class="placeholder-page">Loading events...</div>
-</template>
+  </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
