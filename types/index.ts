@@ -21,3 +21,8 @@ export type {
   Post,
   Comment
 } from './post.d'
+
+export type {
+  FriendRequest,
+  FriendInfo
+} from './friendRequest'
