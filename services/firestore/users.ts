@@ -17,11 +17,6 @@ import { doc, updateDoc } from 'firebase/firestore';
 import type { UserProfile } from '~~/types/user';
 
 // ------------------------------------------------------------------
-// 1. HELPER: Get Collection Reference
-// ------------------------------------------------------------------
-const getUserCollection = () => collection(getFirestore(), 'users');
-
-// ------------------------------------------------------------------
 // 2. MAPPER: Doc -> UserProfile Object
 // ------------------------------------------------------------------
 const mapDocToUser = (docSnap: QueryDocumentSnapshot<DocumentData>): UserProfile => {
@@ -72,7 +67,7 @@ export const UserService = {
             console.error("Error fetching users by UIDs:", error);
             return [];
         }
-    }
+    },
 
     /**
      *Updates the 'joinedGroups' array on the user's profile document.
