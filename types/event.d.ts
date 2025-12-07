@@ -101,6 +101,7 @@ export interface Organization {
 export interface EventsState {
     allEvents: ConnectEvent[];
     organizationEvents: ConnectEvent[],
+    userEvents: ConnectEvent[],
     isLoading: boolean;
     activeFilters: {
         category: string | null;
