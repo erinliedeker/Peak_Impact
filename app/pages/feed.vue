@@ -49,7 +49,7 @@
     <main class="feed-main">
       <!-- Create Post Section -->
       <div class="create-post">
-        <div class="post-header">
+        <div v-if="!expandPostForm" class="post-header">
           <div class="user-avatar-small">{{ userInitials }}</div>
           <input 
             v-model="newPostText"
@@ -69,10 +69,6 @@
           ></textarea>
           
           <div class="post-options">
-            <div class="file-upload">
-              <!-- Photo upload removed: Firebase Storage not available -->
-            </div>
-
             <div class="post-org-select">
               <label>Post to:</label>
               <select v-model="postOrg" class="org-select">
@@ -82,13 +78,12 @@
                 </option>
               </select>
             </div>
-          </div>
-
-          <div class="post-actions">
-            <button @click="expandPostForm = false" class="btn-cancel">Cancel</button>
-            <button @click="handleCreatePost" class="btn-post" :disabled="!newPostText.trim() || loading">
-              {{ loading ? 'Posting...' : 'Post' }}
-            </button>
+            <div class="post-actions">
+              <button @click="expandPostForm = false" class="btn-cancel">Cancel</button>
+              <button @click="handleCreatePost" class="btn-post" :disabled="!newPostText.trim() || loading">
+                {{ loading ? 'Posting...' : 'Post' }}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -594,9 +589,6 @@ userHours.value = 42.5
 }
 
 .post-form-expanded {
-  margin-top: 1.5rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid #e2e8f0;
 }
 
 .post-textarea {
@@ -607,6 +599,7 @@ userHours.value = 42.5
   font-size: 0.95rem;
   font-family: inherit;
   resize: vertical;
+  box-sizing: border-box;
 }
 
 .post-textarea:focus {
@@ -616,13 +609,14 @@ userHours.value = 42.5
 }
 
 .post-options {
-  margin-top: 1.5rem;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1.5rem;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
   padding: 1.5rem;
   background: #f8fafc;
   border-radius: 8px;
+  gap: 25px;
 }
 
 .file-upload {
@@ -1056,10 +1050,6 @@ userHours.value = 42.5
   }
 
   .feed-sidebar {
-    grid-template-columns: 1fr;
-  }
-
-  .post-options {
     grid-template-columns: 1fr;
   }
 
