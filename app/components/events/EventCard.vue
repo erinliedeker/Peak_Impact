@@ -11,7 +11,7 @@
       <h1>{{ item.name }}</h1>
     </header>
     <div class="action-buttons">
-      <button class="btn primary">RSVP</button>
+      <button class="btn primary">Sign Up</button>
       <button class="btn secondary">Share</button>
     </div>
     <div class="details">
