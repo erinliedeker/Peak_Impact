@@ -89,12 +89,10 @@ const handleLogout = () => {
 <style scoped>
 /* Sidebar Container */
 .sidebar {
-  position: fixed;
   top: 0;
   bottom: 0; /* Anchors to bottom edge */
   left: 0;
   
-  /* Remove height: 100vh */
   width: 260px;
   display: flex;
   flex-direction: column;
