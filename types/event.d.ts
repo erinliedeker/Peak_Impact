@@ -59,8 +59,8 @@ export interface ConnectEvent {
     suppliesNeeded: string[];
     
     attendees: VolunteerAttendance[]; 
-    
-    // createdAt: string;
+
+    createdAt?: string;
 
     // --- NEW OPTIONAL FIELDS FOR MOBILIZE ---
     isExternal?: boolean;

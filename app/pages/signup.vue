@@ -148,7 +148,7 @@
 
 <script setup>
 import { ref } from 'vue'
-import { createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup } from 'firebase/auth'
+import { createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword } from 'firebase/auth'
 import { doc, setDoc, getDoc, addDoc, collection } from 'firebase/firestore' 
 import { globalCategories } from '~~/types/models'
 import { useAuthStore } from '~~/stores/auth'
@@ -299,7 +299,7 @@ async function handleSignUp() {
     
     // 4. Call the centralized persistence function
     await createFirestoreProfile(user, userType, false)
-    
+
   } catch (err) {
     console.error(err)
     error.value = err.message
