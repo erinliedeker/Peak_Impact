@@ -89,6 +89,7 @@ onUnmounted(() => document.removeEventListener('click', closeDropdowns));
 
 <style scoped>
 .app-header {
+  top: 0;
   height: 64px;
   min-height: 64px;
   background: white;
@@ -97,7 +98,7 @@ onUnmounted(() => document.removeEventListener('click', closeDropdowns));
   align-items: center;
   justify-content: space-between;
   padding: 0 2rem;
-  position: relative; 
+  position: sticky; 
   z-index: 40;
 }
 
