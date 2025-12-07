@@ -1,15 +1,18 @@
+// stores/events.ts
+
 import { defineStore } from 'pinia';
 import type { EventsState, ConnectEvent, VolunteerAttendance } from '../types/event';
-import { useAuthStore } from './auth'; // Needed to get the current user's ID/Name
+import { useAuthStore } from './auth';
+import { EventService } from '../services/firestore/events'; // <-- NEW IMPORT
 
-// ... (simulateEventFetch helper function remains, but should now include attendees data)
 // NOTE: For simplicity, I'm modifying the simulateEventFetch result to include attendees for Event 1.
+// NOTE: I'm also changing IDs to be string|number to match the flexible interface
 const simulateEventFetch = (): ConnectEvent[] => ([
     { 
-        id: 1, 
+        id: 'evt-1', // Changed to string ID for consistency
         title: 'Memorial Park Cleanup', 
         description: 'Help clear winter debris and prep flower beds.', 
-        organizationId: 201, 
+        organizationId: 'org-201', // Changed to string ID
         organizationName: 'Keep COS Beautiful', 
         location: { lat: 38.8283, lng: -104.8143 }, 
         date: '2025-03-15', 
@@ -19,7 +22,6 @@ const simulateEventFetch = (): ConnectEvent[] => ([
         volunteersSignedUp: 1, 
         isMicroProject: false, 
         suppliesNeeded: ['Gloves', 'Shovels'],
-        // NEW ATTENDEE DATA
         attendees: [
             { volunteerId: 101, volunteerName: 'Erin L.', signedUp: true, checkInTime: '2025-03-15T08:55:00Z', checkOutTime: null, hoursVerified: false, verificationLetterSent: false }
         ]
@@ -27,9 +29,11 @@ const simulateEventFetch = (): ConnectEvent[] => ([
     // ... other events ...
 ]);
 
+
 export const useEventsStore = defineStore('events', {
     state: (): EventsState => ({
         allEvents: [],
+        organizationEvents: [],
         isLoading: false,
         activeFilters: {
             category: null,
@@ -40,17 +44,13 @@ export const useEventsStore = defineStore('events', {
     }),
 
     getters: {
-        // Returns the filtered list of events based on activeFilters
         filteredEvents: (state) => {
             let events = state.allEvents;
             const filters = state.activeFilters;
 
-            // TODO: Add complex filtering logic here
-
             if (filters.category) {
                 events = events.filter(e => e.category === filters.category);
             }
-            // Add more filters as needed (e.g., isMicroProject)
 
             return events;
         },
@@ -58,10 +58,10 @@ export const useEventsStore = defineStore('events', {
 
     actions: {
         async fetchEvents() {
-            // ... (existing logic) ...
             this.isLoading = true;
             this.error = null;
             try {
+                // NOTE: In a real app, this would be EventService.getAll()
                 const events = simulateEventFetch();
                 this.allEvents = events;
             } catch (e: any) {
@@ -70,15 +70,58 @@ export const useEventsStore = defineStore('events', {
                 this.isLoading = false;
             }
         },
+        
+        /**
+         * Fetches events associated with the owned organization.
+         */
+        async fetchOrganizationEvents(orgId: string | number) {
+            this.isLoading = true;
+            this.error = null;
+            try {
+                const events = await EventService.getByOrganizationId(orgId);
+                this.organizationEvents = events;
+            } catch (e: any) {
+                console.error("Failed to load organization events:", e);
+                this.error = 'Failed to load your events.';
+            } finally {
+                this.isLoading = false;
+            }
+        },
 
-        // --- NEW ORG ADMIN ACTIONS ---
+        /**
+         * Create event and add to local state lists.
+         */
+        async createEvent(eventData: Omit<ConnectEvent, 'id'>) {
+            this.isLoading = true;
+            this.error = null;
+            
+            try {
+                const newId = await EventService.create(eventData);
+                const newEvent: ConnectEvent = { ...eventData, id: newId };
+                
+                // 1. Add to general events list
+                this.allEvents.unshift(newEvent);
+                // 2. Add to organization-specific events list
+                this.organizationEvents.unshift(newEvent); 
+
+                return newId;
+            } catch (err: any) {
+                console.error("Event Creation Error:", err);
+                this.error = "Failed to create event.";
+                throw err;
+            } finally {
+                this.isLoading = false;
+            }
+        },
+
+        // --- ATTENDANCE ACTIONS (Updated to handle string|number IDs) ---
 
         /**
          * Org Admin action to check-in a volunteer for an event.
-         * @param eventId - The ID of the event.
+         * @param eventId - The ID of the event (string or number).
          * @param volunteerId - The ID of the volunteer being checked in.
          */
-        async checkInVolunteer(eventId: number, volunteerId: number) {
+        async checkInVolunteer(eventId: string | number, volunteerId: number) {
             // 1. Find the event
             const event = this.allEvents.find(e => e.id === eventId);
             if (!event) return;
@@ -95,52 +138,40 @@ export const useEventsStore = defineStore('events', {
 
         /**
          * Org Admin action to check-out a volunteer and finalize hours.
-         * @param eventId - The ID of the event.
+         * @param eventId - The ID of the event (string or number).
          * @param volunteerId - The ID of the volunteer being checked out.
          */
-        async checkOutVolunteer(eventId: number, volunteerId: number) {
+        async checkOutVolunteer(eventId: string | number, volunteerId: number) {
             const event = this.allEvents.find(e => e.id === eventId);
             const record = event?.attendees.find(a => a.volunteerId === volunteerId);
 
             if (record && record.checkInTime && !record.checkOutTime) {
                 record.checkOutTime = new Date().toISOString();
-                record.hoursVerified = true; // Hours are verified upon successful check-out
+                record.hoursVerified = true; 
                 
                 // TODO: API call to update attendance record on server
-                // This API call should also trigger an update to the user's Impact Store points/hours!
                 console.log(`Volunteer ${volunteerId} checked OUT for Event ${eventId}. Hours Verified.`);
             }
         },
 
-        // --- NEW SERVICE HOUR VERIFICATION ACTION ---
+        // --- SERVICE HOUR VERIFICATION ACTION (Updated to handle string|number IDs) ---
 
         /**
          * Generates and marks the service hour verification letter as sent.
-         * @param eventId - The ID of the completed event.
+         * @param eventId - The ID of the completed event (string or number).
          * @param volunteerId - The ID of the volunteer needing the letter.
          */
-        async generateVerificationLetter(eventId: number, volunteerId: number) {
+        async generateVerificationLetter(eventId: string | number, volunteerId: number) {
             const event = this.allEvents.find(e => e.id === eventId);
             const record = event?.attendees.find(a => a.volunteerId === volunteerId);
 
             if (record && record.hoursVerified && !record.verificationLetterSent) {
-                // 1. Calculate final hours
                 const checkIn = new Date(record.checkInTime!);
                 const checkOut = new Date(record.checkOutTime!);
-                // Calculates total minutes difference
                 const totalMinutes = (checkOut.getTime() - checkIn.getTime()) / (1000 * 60);
-                const totalHours = Math.round(totalMinutes / 60 * 10) / 10; // Rounded to one decimal
+                const totalHours = Math.round(totalMinutes / 60 * 10) / 10;
 
-                // 2. **Auto-Generate Letter Content (Simulation)**
-                const letterContent = `
-                    TO WHOM IT MAY CONCERN,
-
-                    This letter verifies that ${record.volunteerName} completed 
-                    ${totalHours} hours of community service for the event "${event!.title}" 
-                    on ${event!.date}.
-
-                    Verified by: ${event!.organizationName}
-                `;
+                const letterContent = `... Letter content for ${totalHours} hours ...`;
 
                 // TODO: API call to generate and email/download the PDF based on letterContent
                 
