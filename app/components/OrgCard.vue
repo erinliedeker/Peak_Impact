@@ -3,6 +3,11 @@
     <div class="card-banner" :class="org.type.toLowerCase()"></div>
 
     <div class="card-content">
+      
+      <div v-if="matchScore > 0" class="score-badge" :class="scoreClass">
+        <Icon name="heroicons:fire-solid" size="0.9rem" />
+        {{ matchScore }}% Match
+      </div>
       <NuxtLink :to="`/organizations/${org.id}`" class="org-avatar">
         {{ getInitials(org.name) }}
       </NuxtLink>
@@ -22,21 +27,11 @@
 
       <div class="button-group">
         <button class="icon-btn instagram-btn" @click.stop="openInstagram" title="Open Instagram">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
-            <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
-            <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
-          </svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
         </button>
 
         <button class="icon-btn google-btn" @click.stop="openWebSearch" title="Search on Google">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"></circle>
-            <line x1="2" y1="12" x2="22" y2="12"></line>
-            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-          </svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1 4-10z"></path></svg>
         </button>
 
         <button v-if="!org.propublica" class="follow-btn" :class="{ active: isFollowing }" @click.stop="toggleFollow">
@@ -52,28 +47,26 @@ import { useOrgStore } from '../stores/orgs';
 import { computed } from 'vue';
 
 const props = defineProps({
-  org: {
-    type: Object,
-    required: true
-  }
+  org: { type: Object, required: true },
+  matchScore: { type: Number, required: true, default: 0 }
 });
 
 const orgStore = useOrgStore();
 
-const isFollowing = computed(() => {
-  return orgStore.followedOrganizations.includes(props.org.id);
+// 🌟 NEW: Determine Color based on Score 🌟
+const scoreClass = computed(() => {
+  if (props.matchScore >= 75) return 'high-match';   // Green
+  if (props.matchScore >= 40) return 'medium-match'; // Orange
+  return 'low-match';                                // Gray/Blue
 });
 
-const toggleFollow = () => {
-  orgStore.toggleFollowOrg(props.org.id);
-};
+const isFollowing = computed(() => orgStore.followedOrganizations.includes(props.org.id));
+const toggleFollow = () => orgStore.toggleFollowOrg(props.org.id);
 
 const openInstagram = () => {
-  // 1. Check if the direct link exists in the data
   if (props.org.socialLinks && props.org.socialLinks.instagram) {
     window.open(props.org.socialLinks.instagram, '_blank');
   } else {
-    // 2. Fallback: Search specifically for their instagram via Google
     const nameEncoded = encodeURIComponent(props.org.name + " Colorado Springs");
     const searchUrl = `https://www.google.com/search?q=site:instagram.com+"${nameEncoded}"`;
     window.open(searchUrl, '_blank');
@@ -81,12 +74,10 @@ const openInstagram = () => {
 };
 
 const openWebSearch = () => {
-  // Always perform a broad Google search to find their website/presence
   const nameEncoded = encodeURIComponent(props.org.name + " Colorado Springs");
   const searchUrl = `https://www.google.com/search?q=${nameEncoded}`;
   window.open(searchUrl, '_blank');
 };
-
 
 const getInitials = (name) => name.split(' ').map(n => n[0]).join('').substring(0,2);
 const formatType = (type) => type.replace(/([A-Z])/g, ' $1').trim();
@@ -125,10 +116,44 @@ const formatType = (type) => type.replace(/([A-Z])/g, ' $1').trim();
   background-color: var(--color-accent);
 }
 
+.score-badge {
+  position: absolute;
+  top: 1.5rem;
+  right: 1.5rem;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: white; /* Text is always white */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Color Variants */
+.high-match {
+  background-color: #38a169; /* Green for > 75% */
+}
+
+.medium-match {
+  background-color: #dd6b20; /* Orange for 40% - 74% */
+}
+
+.low-match {
+  background-color: #718096; /* Gray for < 40% */
+}
+
+.score-badge .icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+
 .card-content {
   padding: 1.5rem;
   padding-top: 0;
-  position: relative;
+  position: relative; /* Essential for positioning the score-badge */
   display: flex;
   flex-direction: column;
   flex-grow: 1;

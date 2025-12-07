@@ -7,6 +7,7 @@ export interface UserProfile {
   id: string;
   name: string;
   email: string;
+  interests: string[];
   userType: 'Resident' | 'OrgAdmin' | 'Student'; // Key for authorization and permissions
   neighborhoodId: number | null; // For hyper-local filtering, null if not set
   impactPoints: number; // For gamification/impact tracking

@@ -32,15 +32,15 @@
 
     <div v-else-if="error" class="status-message error-box">
         <p>🔴 {{ error }}</p>
-        <button @click="fetchOrganizations()">Try Again</button>
+        <button @click="fetchOrganizations('')">Try Again</button>
     </div>
 
     <div v-else class="org-grid">
       <OrgCard 
-        v-for="org in filteredOrgs" 
-        :key="org.id" 
-        :org="org" 
-      />
+        v-for="item in filteredOrgs" 
+        :key="item.org.id" 
+        :org="item.org" 
+        :match-score="item.score" />
       
       <div v-if="filteredOrgs.length === 0" class="empty-state">
         <p>No organizations found matching your search ({{ allOrganizations.length }} total loaded).</p>
@@ -52,41 +52,45 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue' // <-- Import necessary Vue features
+import { ref, computed, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
-import { useOrgStore } from '~~/stores/orgs' // Adjust path if necessary
+import { useOrgStore } from '~~/stores/orgs'
 
 // Store Setup
 const orgStore = useOrgStore()
-const { allOrganizations, isLoading, error } = storeToRefs(orgStore)
-const { fetchOrganizations } = orgStore // Only need fetch, follow logic moves to OrgCard
+const { recommendedOrgs, allOrganizations, isLoading, error } = storeToRefs(orgStore)
+const { fetchOrganizations } = orgStore 
 
 // Local State for Filtering
 const searchQuery = ref('')
 const selectedType = ref('All')
 
-// 4. Trigger the data fetching action when the component is mounted/initialized
 onMounted(() => {
     fetchOrganizations("") 
 })
 
-// Filter Logic: Filters the allOrganizations list based on user input
+// Filter Logic: Now works on the list of { org, score } objects
 const filteredOrgs = computed(() => {
-  let list = allOrganizations.value; // Access the reactive value
+  // 🌟 CHANGE 1: Start with the recommended list of { org, score } objects
+  let list = recommendedOrgs.value; 
 
-  // 1. Filter by Type
+  // Filter by Type
   if (selectedType.value !== 'All') {
-    list = list.filter(o => o.type === selectedType.value);
+    // Note: We now filter on item.org.type
+    list = list.filter(item => item.org.type === selectedType.value);
   }
 
-  // 2. Filter by Search Text
+  // Filter by Search Text
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase();
-    list = list.filter(o => 
-      o.name.toLowerCase().includes(query) || 
-      o.description.toLowerCase().includes(query)
+    // Note: We now filter on item.org.name/description
+    list = list.filter(item => 
+      item.org.name.toLowerCase().includes(query) || 
+      item.org.description.toLowerCase().includes(query)
     );
   }
+
+  console.log(list)
 
   return list;
 });
@@ -96,12 +100,8 @@ const resetFilters = () => {
   selectedType.value = 'All';
 };
 </script>
-
 <style scoped>
-/*
-  Merged styles: Combining the general cleanup from the second component 
-  with the necessary status styles from the first.
-*/
+/* (Styles remain exactly the same as your previous version) */
 .orgs-page {
   max-width: 1200px;
   margin: 0 auto;

@@ -31,7 +31,8 @@ const mapDocToOrg = (doc: DocumentData): Organization => {
         socialLinks: {
             instagram: data.socialLinks?.instagram || null,
             facebook: data.socialLinks?.facebook || null,
-        }
+        },
+        interests: data.interests || [],
     };
 };
 
