@@ -22,19 +22,36 @@ export interface ConnectEvent {
     description: string;
     organizationId: string | number;
     organizationName: string;
-    // location: GeoLocation;
+    
+    // We update location to allow a simple string for Mobilize events, 
+    // or keep your existing GeoLocation object for Firestore events.
+    location: GeoLocation | string; 
+    
     date: string;
     time: string;
-    category: 'PublicSafety' | 'Environment' | 'Youth' | 'Arts' | 'Social';
+    
+    // You might want to allow 'string' here if Mobilize categories 
+    // don't match your hardcoded union types exactly.
+    category: 'PublicSafety' | 'Environment' | 'Youth' | 'Arts' | 'Social' | string;
+    
     volunteersNeeded: number;
     volunteersSignedUp: number;
     isMicroProject: boolean;
     suppliesNeeded: string[];
-    // NEW: Array to track all volunteers for the event
-    // attendees: VolunteerAttendance[]; 
+    attendees: VolunteerAttendance[]; 
     createdAt: string;
-}
 
+    // --- NEW OPTIONAL FIELDS FOR MOBILIZE ---
+    
+    // Marks the event as external so the UI knows to show a "Visit Site" button
+    isExternal?: boolean;
+
+    // The direct link to the Mobilize event page
+    externalUrl?: string;
+
+    // Mobilize often provides a featured image, which looks great in the UI
+    imageUrl?: string;
+}
 /**
  * Defines the geographic coordinates for an event or micro-project.
  */

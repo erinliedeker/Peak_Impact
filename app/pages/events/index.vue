@@ -39,31 +39,41 @@ const displayedEvents = ref([])
 const selectedEvent = ref(null)
 const loading = ref(false)
 
+
 function filterEvents({ query: q, filters: f }) {
   const qLower = (q || '').trim().toLowerCase()
   const when = (f?.when) || 'any'
   const category = (f?.category || '').toLowerCase()
+  
+  // NOTE: Your backend object doesn't seem to have a 'status' field yet. 
+  // If you need it, you'll need to compute it (e.g., based on volunteersSignedUp vs Needed).
+  // For now, let's default it to 'all' so it doesn't break.
   const status = (f?.status || 'all').toLowerCase()
+  
   const today = new Date()
 
   return allEvents.value.filter(ev => {
-    // text match (name or organizer)
-    const nameMatch = ev.name && ev.name.toLowerCase().includes(qLower)
-    const organizerName = ev.organizer?.name || ''
+    // 1. FIX: Use 'title' instead of 'name'
+    const nameMatch = ev.title && ev.title.toLowerCase().includes(qLower)
+    
+    // 2. FIX: Use 'organizationName' directly (no nested organizer object)
+    const organizerName = ev.organizationName || ''
     const organizerMatch = organizerName.toLowerCase().includes(qLower)
+    
     const textOk = !qLower || nameMatch || organizerMatch
 
-    // category match
+    // 3. Category match
     const categoryOk = !category || (ev.category || '').toLowerCase() === category
 
-    // status match
-    const statusOk = status === 'all' || (ev.status || '').toLowerCase() === status
+    // 4. Status match (simplified since 'status' isn't in your interface yet)
+    // You might want to remove this if you don't have a status filter on the UI yet
+    const statusOk = true; 
 
-    // when match (assumes ev.date is ISO string or Date)
+    // 5. When match
     let whenOk = true
     if (when === 'upcoming' || when === 'past') {
       const evDate = ev.date ? new Date(ev.date) : null
-      if (!evDate) whenOk = when === 'past' // unknown dates treated as past-ish
+      if (!evDate) whenOk = when === 'past' 
       else whenOk = when === 'upcoming' ? evDate >= today : evDate < today
     }
 
