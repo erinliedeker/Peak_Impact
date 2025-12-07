@@ -14,6 +14,8 @@ TestResults.xml
 # Dependencies
 node_modules/
 
+package-lock.json
+
 # Nuxt build directory (Dev) - This changes constantly, never commit it
 .nuxt/
 
