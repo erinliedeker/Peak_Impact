@@ -108,6 +108,10 @@ import { ref } from 'vue'
 import { createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup } from 'firebase/auth'
 import { doc, setDoc, getDoc, addDoc, collection } from 'firebase/firestore' // Added addDoc/collection
 
+definePageMeta({
+  layout: false 
+})
+
 const auth = useFirebaseAuth()
 const db = useFirestore()
 const router = useRouter()
@@ -252,7 +256,7 @@ async function handleGoogleSignIn() {
       await updateProfile(user, { displayName: user.displayName })
     }
 
-    router.push('/')
+    router.push('/feed')
   } catch (err) {
     console.error(err)
     error.value = err.message
