@@ -53,6 +53,7 @@ export interface Organization {
     type: 'NonProfit' | 'School' | 'NeighborhoodGroup' | 'CityDept';
     description: string;
     contactEmail: string;
+    interests: string[] | null;
     socialLinks: {
         instagram: string | null;
         facebook: string | null;

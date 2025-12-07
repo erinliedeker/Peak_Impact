@@ -241,7 +241,7 @@ async function createFirestoreProfile(user, userType, isOAuth = false) {
     await setDoc(doc(db, "users", user.uid), userData, { merge: true }) // Use merge for safety
 
     // 5. Redirect
-    router.push('/')
+    router.push('/feed')
 }
 
 // --- UPDATED: handleSignUp (Email/Password) ---
