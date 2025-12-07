@@ -59,8 +59,8 @@ export interface ConnectEvent {
     suppliesNeeded: string[];
     
     attendees: VolunteerAttendance[]; 
-    
-    createdAt: string;
+
+    createdAt?: string;
 
     // --- NEW OPTIONAL FIELDS FOR MOBILIZE ---
     isExternal?: boolean;
@@ -101,6 +101,7 @@ export interface Organization {
 export interface EventsState {
     allEvents: ConnectEvent[];
     organizationEvents: ConnectEvent[],
+    userEvents: ConnectEvent[],
     isLoading: boolean;
     activeFilters: {
         category: string | null;

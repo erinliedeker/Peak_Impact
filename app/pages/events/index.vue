@@ -1,9 +1,11 @@
 <template>
   <div class="events-page">
-    <EventSearchBar
-      @search="onSearch"
-      @update:filters="onFiltersUpdate"
-    />
+    <div class="search-bar-container">
+      <EventSearchBar
+        @search="onSearch"
+        @update:filters="onFiltersUpdate"
+      />
+    </div>
     <div class="content-window">
       <div class="event-list-container">
         <EventList class="event-list"
@@ -18,7 +20,6 @@
         />
       </div>
     </div>
-
   </div>  
   <div v-if="loading" class="placeholder-page">Loading events...</div>
 </template>
@@ -46,11 +47,6 @@ function filterEvents({ query: q, filters: f }) {
   const when = (f?.when) || 'any'
   const category = (f?.category || '').toLowerCase()
   
-  // NOTE: Your backend object doesn't seem to have a 'status' field yet. 
-  // If you need it, you'll need to compute it (e.g., based on volunteersSignedUp vs Needed).
-  // For now, let's default it to 'all' so it doesn't break.
-  const status = (f?.status || 'all').toLowerCase()
-  
   const today = new Date()
 
   return allEvents.value.filter(ev => {
@@ -68,7 +64,13 @@ function filterEvents({ query: q, filters: f }) {
 
     // 4. Status match (simplified since 'status' isn't in your interface yet)
     // You might want to remove this if you don't have a status filter on the UI yet
-    const statusOk = true; 
+    let status = '';
+    if(ev.volunteersNeeded > ev.volunteersSignedUp) {
+      status = 'open';
+    } else {
+      status = 'full';
+    }
+    const statusOk = status === f?.status.toLowerCase() || f?.status === 'all' || !f?.status;
 
     // 5. When match
     let whenOk = true
@@ -104,7 +106,7 @@ async function fetchEvents() {
   loading.value = true
   try {
    allEvents.value = await useEventsStore().fetchEvents()
-   displayedEvents.value = allEvents.value.slice()
+   displayedEvents.value = allEvents.value
    if(!selectedEvent.value) {
     openEvent(allEvents.value[0])
    }
@@ -118,15 +120,25 @@ onMounted(fetchEvents)
 </script>
 
 <style scoped>
+
 .events-page {
-  height: 86vh;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+
+}
+
+.search-bar-container {
+  min-height: 50px;
+  background-color: var(--color-bg);
 }
 
 .content-window {
   display: flex;
   flex-direction: row;
   width: 100%;
-  height: 100%;
+  height: calc(100% - 50px);
   overflow: clip;
 }
 

@@ -170,4 +170,61 @@ export const EventService = {
             attendees: attendees
         });
     },
+
+    /**
+     * ✅ CHECK-IN: Sets status to 'checked-in' and records the time.
+     * defaults to current time if no time provided.
+     */
+    async checkInVolunteer(eventId: string, volunteerId: string, isoTime?: string): Promise<void> {
+        const db = getFirestore();
+        const eventRef = doc(db, 'events', eventId);
+        const snapshot = await getDoc(eventRef);
+
+        if (!snapshot.exists()) throw new Error("Event not found");
+
+        const data = snapshot.data();
+        const attendees = (data.attendees || []) as VolunteerAttendance[];
+
+        // Find and update the specific volunteer
+        const updatedAttendees = attendees.map(att => {
+            if (att.volunteerId === volunteerId) {
+                return {
+                    ...att,
+                    status: 'checked-in',
+                    checkInTime: isoTime || new Date().toISOString()
+                };
+            }
+            return att;
+        });
+
+        // Save the updated list back to Firestore
+        await updateDoc(eventRef, { attendees: updatedAttendees });
+    },
+
+    /**
+     * ✅ CHECK-OUT: Sets status to 'completed' and records the time.
+     */
+    async checkOutVolunteer(eventId: string, volunteerId: string, isoTime?: string): Promise<void> {
+        const db = getFirestore();
+        const eventRef = doc(db, 'events', eventId);
+        const snapshot = await getDoc(eventRef);
+
+        if (!snapshot.exists()) throw new Error("Event not found");
+
+        const data = snapshot.data();
+        const attendees = (data.attendees || []) as VolunteerAttendance[];
+
+        const updatedAttendees = attendees.map(att => {
+            if (att.volunteerId === volunteerId) {
+                return {
+                    ...att,
+                    status: 'completed',
+                    checkOutTime: isoTime || new Date().toISOString()
+                };
+            }
+            return att;
+        });
+
+        await updateDoc(eventRef, { attendees: updatedAttendees });
+    }
 };

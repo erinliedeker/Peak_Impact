@@ -22,9 +22,9 @@ export const useFriendRequests = () => {
   const currentUserId = computed(() => authStore.profile?.id)
 
   /**
-   * Follow a user (Instagram style - no approval needed)
+   * Send a follow request (Instagram style with approval)
    */
-  const followUser = async (toUserId: string) => {
+  const sendFollowRequest = async (toUserId: string) => {
     if (!currentUserId.value) throw new Error('User not authenticated')
     if (currentUserId.value === toUserId) throw new Error('Cannot follow yourself')
 
@@ -35,17 +35,91 @@ export const useFriendRequests = () => {
       throw new Error('Already following this user')
     }
 
-    // Create follow
-    await setDoc(doc(db, 'follows', followId), {
-      followerId: currentUserId.value,
-      followingId: toUserId,
-      status: 'active',
+    // Check if request already exists
+    const requestsQuery = query(
+      collection(db, 'friendRequests'),
+      where('from', '==', currentUserId.value),
+      where('to', '==', toUserId),
+      where('status', '==', 'pending')
+    )
+    const existingRequests = await getDocs(requestsQuery)
+    if (!existingRequests.empty) {
+      throw new Error('Follow request already sent')
+    }
+
+    // Create follow request
+    await addDoc(collection(db, 'friendRequests'), {
+      from: currentUserId.value,
+      to: toUserId,
+      status: 'pending',
       createdAt: serverTimestamp()
-    }, { merge: true })
+    })
   }
 
   /**
-   * Unfollow a user
+   * Accept a follow request
+   */
+  const acceptFollowRequest = async (requestId: string) => {
+    if (!currentUserId.value) throw new Error('User not authenticated')
+
+    const requestRef = doc(db, 'friendRequests', requestId)
+    const requestSnap = await getDoc(requestRef)
+    
+    if (!requestSnap.exists()) throw new Error('Request not found')
+    
+    const requestData = requestSnap.data() as FriendRequest
+    if (requestData.to !== currentUserId.value) {
+      throw new Error('Not authorized to accept this request')
+    }
+
+
+    // Create the follow relationship (requester follows accepter)
+    const followId = `${requestData.from}_${requestData.to}`
+    await setDoc(doc(db, 'follows', followId), {
+      followerId: requestData.from,
+      followingId: requestData.to,
+      status: 'active',
+      createdAt: serverTimestamp()
+    })
+
+    // Create mutual follow relationship (accepter follows requester)
+    const mutualFollowId = `${requestData.to}_${requestData.from}`
+    await setDoc(doc(db, 'follows', mutualFollowId), {
+      followerId: requestData.to,
+      followingId: requestData.from,
+      status: 'active',
+      createdAt: serverTimestamp()
+    })
+
+    // Update request status to accepted
+    await updateDoc(requestRef, {
+      status: 'accepted',
+      acceptedAt: serverTimestamp()
+    })
+  }
+
+  /**
+   * Reject a follow request
+   */
+  const rejectFollowRequest = async (requestId: string) => {
+    if (!currentUserId.value) throw new Error('User not authenticated')
+
+    const requestRef = doc(db, 'friendRequests', requestId)
+    const requestSnap = await getDoc(requestRef)
+    
+    if (!requestSnap.exists()) throw new Error('Request not found')
+    
+    const requestData = requestSnap.data() as FriendRequest
+    if (requestData.to !== currentUserId.value) {
+      throw new Error('Not authorized to reject this request')
+    }
+
+    // Delete the request
+    await deleteDoc(requestRef)
+  }
+
+  /**
+   * Unfollow a user (removes the follow relationship)
    */
   const unfollowUser = async (toUserId: string) => {
     if (!currentUserId.value) throw new Error('User not authenticated')
@@ -62,13 +136,30 @@ export const useFriendRequests = () => {
 
     const followId = `${currentUserId.value}_${userId}`
     const followSnap = await getDoc(doc(db, 'follows', followId))
-    return followSnap.exists()
+    return followSnap.exists() && followSnap.data()?.status === 'active'
   }
 
   /**
-   * Cancel a friend request (sender)
+   * Check if a follow request is pending
    */
-  const cancelRequest = async (requestId: string) => {
+  const hasRequestPending = async (toUserId: string): Promise<string | null> => {
+    if (!currentUserId.value) return null
+
+    const requestsQuery = query(
+      collection(db, 'friendRequests'),
+      where('from', '==', currentUserId.value),
+      where('to', '==', toUserId),
+      where('status', '==', 'pending')
+    )
+    const requestsSnap = await getDocs(requestsQuery)
+    
+    return requestsSnap.empty ? null : requestsSnap.docs[0]?.id || null
+  }
+
+  /**
+   * Cancel a follow request (sender)
+   */
+  const cancelFollowRequest = async (requestId: string) => {
     if (!currentUserId.value) throw new Error('User not authenticated')
 
     const requestRef = doc(db, 'friendRequests', requestId)
@@ -109,44 +200,79 @@ export const useFriendRequests = () => {
   }
 
   /**
-   * Check friend status with a user
-   * Returns: 'following' | 'not_following'
+   * Check follow status with a user
+   * Returns: 'following' | 'requested' | 'not_following'
    */
-  const checkFollowStatus = async (userId: string) => {
+  const checkFollowStatus = async (userId: string): Promise<'following' | 'requested' | 'not_following'> => {
     if (!currentUserId.value) return 'not_following'
-    return (await isFollowing(userId)) ? 'following' : 'not_following'
+    
+    const following = await isFollowing(userId)
+    if (following) return 'following'
+    
+    const requestId = await hasRequestPending(userId)
+    if (requestId) return 'requested'
+    
+    return 'not_following'
   }
 
   /**
-   * Get user's followers (people following them)
+   * Get user's followers (people following them + pending requests from them)
    */
   const getFollowers = async (userId?: string): Promise<string[]> => {
     const targetUserId = userId || currentUserId.value
     if (!targetUserId) return []
 
+    // Get active follows
     const followersQuery = query(
       collection(db, 'follows'),
       where('followingId', '==', targetUserId)
     )
     const followersSnap = await getDocs(followersQuery)
+    const followerIds = followersSnap.docs.map(doc => doc.data().followerId)
+
+    // Get pending requests TO this user (people requesting to follow)
+    const pendingRequestsQuery = query(
+      collection(db, 'friendRequests'),
+      where('to', '==', targetUserId),
+      where('status', '==', 'pending')
+    )
+    const pendingSnap = await getDocs(pendingRequestsQuery)
+    const pendingFollowerIds = pendingSnap.docs.map(doc => doc.data().from)
+
+    // Combine and deduplicate
+    const allFollowerIds = [...new Set([...followerIds, ...pendingFollowerIds])]
     
-    return followersSnap.docs.map(doc => doc.data().followerId)
+    return allFollowerIds
   }
 
   /**
-   * Get user's following (people they're following)
+   * Get user's following (people they're following + people they've sent requests to)
    */
   const getFollowing = async (userId?: string): Promise<string[]> => {
     const targetUserId = userId || currentUserId.value
     if (!targetUserId) return []
 
+    // Get active follows
     const followingQuery = query(
       collection(db, 'follows'),
       where('followerId', '==', targetUserId)
     )
     const followingSnap = await getDocs(followingQuery)
+    const followingIds = followingSnap.docs.map(doc => doc.data().followingId)
+
+    // Get pending requests FROM this user (people they've requested to follow)
+    const sentRequestsQuery = query(
+      collection(db, 'friendRequests'),
+      where('from', '==', targetUserId),
+      where('status', '==', 'pending')
+    )
+    const sentSnap = await getDocs(sentRequestsQuery)
+    const pendingFollowingIds = sentSnap.docs.map(doc => doc.data().to)
+
+    // Combine and deduplicate
+    const allFollowingIds = [...new Set([...followingIds, ...pendingFollowingIds])]
     
-    return followingSnap.docs.map(doc => doc.data().followingId)
+    return allFollowingIds
   }
 
   /**
@@ -167,9 +293,13 @@ export const useFriendRequests = () => {
   }
 
   return {
-    followUser,
+    sendFollowRequest,
+    acceptFollowRequest,
+    rejectFollowRequest,
+    cancelFollowRequest,
     unfollowUser,
     isFollowing,
+    hasRequestPending,
     checkFollowStatus,
     getFollowers,
     getFollowing,
