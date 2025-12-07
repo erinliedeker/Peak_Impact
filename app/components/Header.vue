@@ -1,224 +1,225 @@
 <template>
   <header class="app-header">
-    <div class="left">
-      <h1 class="title" :title="title">{{ title }}</h1>
-    </div>
+    <h2 class="page-title">{{ pageTitle }}</h2>
 
-    <div class="right">
-      <!-- Notifications -->
-      <div class="control" ref="notifRoot">
-        <button class="icon-btn" @click="toggleNotifs" aria-haspopup="true" :aria-expanded="showNotifs">
-          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a6 6 0 0 0-6 6v3.586L4.293 15.293A1 1 0 0 0 5 17h14a1 1 0 0 0 .707-1.707L18 11.586V8a6 6 0 0 0-6-6zM7 19a5 5 0 0 0 10 0H7z"/></svg>
-          <span v-if="notifCount > 0" class="badge">{{ notifCount }}</span>
+    <div class="right-actions">
+      
+      <div class="control relative" ref="notifRef">
+        <button class="icon-btn" @click="showNotifs = !showNotifs">
+          <Icon name="heroicons:bell-solid" size="1.4rem" />
+          <span v-if="notifications.length" class="badge">{{ notifications.length }}</span>
         </button>
 
-        <div v-if="showNotifs" class="dropdown">
-          <div class="dropdown-header">Notifications</div>
-          <ul class="notif-list">
-            <li v-for="(n, i) in notifications" :key="i" class="notif-item">
-              <div class="notif-title">{{ n.title }}</div>
-              <div class="notif-time">{{ n.time }}</div>
+        <div v-if="showNotifs" class="dropdown notif-drop">
+          <div class="drop-header">Notifications</div>
+          <ul>
+            <li v-for="n in notifications" :key="n.id" class="notif-item">
+              {{ n.text }}
             </li>
-            <li v-if="notifications.length === 0" class="empty">No notifications</li>
+            <li v-if="!notifications.length" class="empty">No new alerts</li>
           </ul>
-          <div class="dropdown-footer">
-            <button class="link-btn" @click="markAllRead">Mark all read</button>
-          </div>
         </div>
       </div>
 
-      <!-- Profile -->
-      <div class="control" ref="profileRoot">
-        <button class="profile-btn" @click="toggleProfile" aria-haspopup="true" :aria-expanded="showProfile">
-          <img v-if="user.avatar" :src="user.avatar" alt="avatar" class="avatar"/>
-          <span v-else class="avatar avatar-initials">{{ initials }}</span>
+      <div class="control relative" ref="profileRef">
+        <button class="profile-btn" @click="showProfile = !showProfile">
+          <span class="name">{{ auth.userName }}</span>
+          <div class="avatar">{{ auth.userName ? auth.userName.charAt(0) : 'U' }}</div>
         </button>
 
-        <div v-if="showProfile" class="dropdown profile-dropdown">
-          <div class="profile-info">
-            <div class="name">{{ user.name }}</div>
-            <div class="email">{{ user.email }}</div>
-          </div>
-          <ul class="profile-actions">
-            <li><button @click="goToProfile">My Profile</button></li>
-            <li><button @click="signOut" class="danger">Sign out</button></li>
-          </ul>
+        <div v-if="showProfile" class="dropdown profile-drop">
+          <NuxtLink to="/profile" class="drop-item" @click="showProfile = false">
+            My Profile
+          </NuxtLink>
+          <button @click="handleLogout" class="drop-item danger">
+            Log Out
+          </button>
         </div>
       </div>
+
     </div>
   </header>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useAuthStore } from '../stores/auth';
 
-const route = useRoute()
-const router = useRouter()
+const route = useRoute();
+const router = useRouter();
+const auth = useAuthStore();
 
-// Basic route -> title map (adjust to your app)
-const titleMap = {
-  feed: 'Feed',
-  events: 'Events',
-  organizations: 'Organizations',
-  myEvents: 'My Events',
-  profile: 'Profile',
-}
+// UI State
+const showNotifs = ref(false);
+const showProfile = ref(false);
+const notifRef = ref(null);
+const profileRef = ref(null);
 
-// derive presentational title from route
-const title = computed(() => {
-  // prefer explicit meta.title or route.name mapped value
-  if (route.meta && route.meta.title) return route.meta.title
-  if (route.name && titleMap[route.name]) return titleMap[route.name]
-  // fallback: format path (/some/long-path -> "Some / Long Path")
-  const p = route.path.replace(/^\//, '')
-  if (!p) return 'Home'
-  return p.split('/').map(s => s.replace(/-/g, ' ')).map(capitalize).join(' / ')
-})
-
-function capitalize(s) {
-  return s.charAt(0).toUpperCase() + s.slice(1)
-}
-
-/* Notifications state (replace with real data/props/api) */
+// Mock Data
 const notifications = ref([
-  { title: 'New comment on your post', time: '2h' },
-  { title: 'Project “Peak” updated', time: '1d' }
-])
-const notifCount = computed(() => notifications.value.length)
-const showNotifs = ref(false)
-function toggleNotifs() { showNotifs.value = !showNotifs.value }
-function markAllRead() { notifications.value = []; showNotifs.value = false }
+  { id: 1, text: 'New event: Creek Cleanup nearby' }
+]);
 
-/* Profile state (replace with auth) */
-const user = ref({ name: 'Nate Watson', email: 'nate@example.com', avatar: '' })
-const initials = computed(() => {
-  return user.value.name.split(' ').map(n => n[0]).slice(0,2).join('').toUpperCase()
-})
-const showProfile = ref(false)
-function toggleProfile() { showProfile.value = !showProfile.value }
-function goToProfile() { router.push({ name: 'profile' }).catch(()=>{}); showProfile.value = false }
-function openSettings() { router.push({ name: 'settings' }).catch(()=>{}); showProfile.value = false }
-function signOut() { /* implement sign out */ console.log('sign out'); showProfile.value = false }
+// Compute Title based on Route Name
+const pageTitle = computed(() => {
+  // If we are on /events/123, just say "Event Details"
+  if (route.params.id) return 'Details';
+  
+  const name = route.name || 'home';
+  // "my-events" -> "My Events"
+  return name.toString().split('-').map(word => 
+    word.charAt(0).toUpperCase() + word.slice(1)
+  ).join(' ');
+});
 
-/* close dropdowns on outside click */
-const notifRoot = ref(null)
-const profileRoot = ref(null)
+// Logout Logic
+const handleLogout = () => {
+  auth.logout();
+  router.push('/login');
+};
 
-function onDocumentClick(e) {
-  if (notifRoot.value && !notifRoot.value.contains(e.target)) showNotifs.value = false
-  if (profileRoot.value && !profileRoot.value.contains(e.target)) showProfile.value = false
-}
+// Close dropdowns when clicking outside
+const closeDropdowns = (e) => {
+  if (!notifRef.value?.contains(e.target)) showNotifs.value = false;
+  if (!profileRef.value?.contains(e.target)) showProfile.value = false;
+};
 
-onMounted(() => document.addEventListener('click', onDocumentClick))
-onBeforeUnmount(() => document.removeEventListener('click', onDocumentClick))
-
-// optional: update document title or other side-effects on route change
-watch(() => route.fullPath, (newPath) => {
-  // keep small — you may update page title here if desired
-})
+onMounted(() => document.addEventListener('click', closeDropdowns));
+onUnmounted(() => document.removeEventListener('click', closeDropdowns));
 </script>
 
 <style scoped>
 .app-header {
+  height: 64px;
+  background: white;
+  border-bottom: 1px solid var(--color-border);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 56px;
-  padding: 0 16px;
-  border-bottom: 1px solid #e5e7eb;
-  background: #fff;
-  gap: 12px;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-}
-.left .title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #111827;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 48ch;
+  padding: 0 2rem;
+  position: relative; 
+  z-index: 40;
 }
 
-.right {
+.page-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-text-main);
+  margin: 0;
+}
+
+.right-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 1.5rem;
 }
 
-.icon-btn, .profile-btn {
-  background: transparent;
+/* Icon Button */
+.icon-btn {
+  background: none;
   border: none;
   cursor: pointer;
-  padding: 6px;
-  border-radius: 8px;
-  display: inline-flex;
-  align-items: center;
+  color: var(--color-text-sub);
   position: relative;
+  display: flex;
+  padding: 5px;
 }
-
-.icon { width: 20px; height: 20px; fill: currentColor; color: #374151; }
 
 .badge {
   position: absolute;
-  top: 4px;
-  right: 4px;
-  background: #ef4444;
-  color: #fff;
-  font-size: 11px;
-  padding: 2px 6px;
-  border-radius: 999px;
+  top: 0;
+  right: 0;
+  background: #e53e3e;
+  color: white;
+  font-size: 0.65rem;
+  padding: 2px 5px;
+  border-radius: 10px;
+  font-weight: 700;
+}
+
+/* Profile Button */
+.profile-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.name {
+  font-weight: 600;
+  color: var(--color-text-main);
+  font-size: 0.9rem;
 }
 
 .avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 999px;
-  object-fit: cover;
-  background: #e5e7eb;
-  display: inline-block;
-}
-.avatar-initials {
-  display: inline-flex;
+  width: 36px;
+  height: 36px;
+  background: var(--color-primary);
+  color: white;
+  border-radius: 50%;
+  display: flex;
   align-items: center;
   justify-content: center;
-  color: #111827;
-  font-weight: 600;
+  font-weight: 700;
 }
 
-/* dropdowns */
-.control { position: relative; }
+/* Dropdowns */
+.relative { position: relative; }
+
 .dropdown {
   position: absolute;
+  top: 100%;
   right: 0;
-  margin-top: 8px;
-  width: 260px;
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  margin-top: 10px;
+  background: white;
+  border: 1px solid var(--color-border);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
   border-radius: 8px;
-  box-shadow: 0 6px 18px rgba(15,23,42,0.08);
-  z-index: 50;
+  min-width: 200px;
   overflow: hidden;
+  z-index: 50;
 }
-.dropdown-header {
-  padding: 10px 12px;
-  font-weight: 600;
-  border-bottom: 1px solid #f3f4f6;
+
+.drop-header {
+  padding: 10px;
+  font-weight: 700;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg);
+  font-size: 0.85rem;
+  color: var(--color-text-sub);
 }
-.notif-list { max-height: 220px; overflow: auto; padding: 8px; list-style: none; margin: 0; }
-.notif-item { padding: 8px; border-radius: 6px; display: flex; justify-content: space-between; gap: 8px; }
-.notif-item + .notif-item { margin-top: 6px; }
-.empty { padding: 12px; text-align: center; color: #6b7280; }
 
-.dropdown-footer { padding: 8px; border-top: 1px solid #f3f4f6; text-align: right; }
+.dropdown ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
 
-.profile-dropdown { width: 220px; right: 0; }
-.profile-info { padding: 12px; border-bottom: 1px solid #f3f4f6; }
-.profile-info .name { font-weight: 600 }
-.profile-info .email { font-size: 12px; color: #6b7280 }
-.profile-actions { list-style: none; margin: 0; padding: 8px; }
-.profile-actions li { margin: 6px 0; }
-.link-btn { background: none; border: none; color: #2563eb; cursor: pointer; }
-.danger { color: #ef4444; background: none; border: none; cursor: pointer; }
+.notif-item {
+  padding: 12px;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 0.9rem;
+  color: var(--color-text-main);
+}
+
+.drop-item {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-main);
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.drop-item:hover {
+  background: var(--color-bg);
+}
+
+.danger { color: #e53e3e; }
+.empty { padding: 1rem; text-align: center; color: var(--color-text-sub); font-size: 0.9rem; }
 </style>
