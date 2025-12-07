@@ -48,6 +48,11 @@
         <span class="label">Profile</span>
       </NuxtLink>
 
+      <NuxtLink to="/reports" class="nav-item" active-class="active">
+        <Icon name="heroicons:chart-bar-square-solid" class="icon" />
+        <span class="label">Reports</span>
+      </NuxtLink>
+
       <div v-if="auth.isOrgAdmin" class="org-section">
         <p class="section-title">MANAGEMENT</p>
         <NuxtLink to="/org/dashboard" class="nav-item org-link" active-class="active">
