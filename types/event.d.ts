@@ -108,6 +108,7 @@ export interface OrgState {
     allOrganizations: Organization[];
     followedOrganizations: string[]; // Array of organization IDs
     neighborhoodGroups: Organization[];
+    ownedOrganization: Organization | null;
     isLoading: boolean;
     error: string | null;
 }
