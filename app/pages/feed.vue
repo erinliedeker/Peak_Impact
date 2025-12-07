@@ -24,7 +24,7 @@
         <h3 class="sidebar-title">Your Organizations</h3>
         <div class="org-list-sidebar">
           <button 
-            @click="clearFilters('org')"
+            @click="clearFilters()"
             class="org-btn"
             :class="{ active: !selectedOrg && !selectedGroup }"
           >
@@ -117,7 +117,6 @@
                 <p class="post-author">{{ post.authorName }}</p>
                 <p class="post-time">{{ formatTime(post.timestamp) }}</p>
                 <p v-if="post.organizationName" class="post-org">@ {{ post.organizationName }}</p>
-                <p v-else-if="post.groupName" class="post-org"># {{ post.groupName }}</p>
               </div>
             </div>
           </div>
@@ -199,7 +198,7 @@ import { useGroupsStore } from '../../stores/groups'
 const authStore = useAuthStore()
 const groupsStore = useGroupsStore()
 
-const { createPost, toggleLike, addComment, getAllPostsQuery, getOrgPostsQuery, getGroupPostsQuery } = useFeed()
+const { createPost, toggleLike, addComment, getAllPostsQuery, getOrgPostsQuery } = useFeed()
 const db = useFirestore()
 
 // State
@@ -241,12 +240,7 @@ const postsQuery = computed(() => {
     return getOrgPostsQuery(selectedOrg.value.id)
   }
   
-  // 2. Check for Group Filter
-  if (selectedGroup.value?.id) {
-    return getGroupPostsQuery(selectedGroup.value.id) 
-  }
-  
-  // 3. Default to Global Feed
+  // 2. Default to Global Feed (Group filtering not yet implemented)
   return getAllPostsQuery()
 })
 
@@ -263,8 +257,6 @@ const feedPosts = computed<Post[]>(() => {
       text: doc.text || '',
       organizationId: doc.organizationId || null,
       organizationName: doc.organizationName || null,
-      groupId: doc.groupId || null,
-      groupName: doc.groupName || null,
       timestamp,
       likes: Array.isArray(doc.likes) ? doc.likes : [],
       commentsCount: doc.commentsCount || 0
@@ -631,9 +623,6 @@ userHours.value = 42.5
   background: white;
   border-color: #667eea;
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-}
-
-.post-form-expanded {
 }
 
 .post-textarea {

@@ -420,54 +420,6 @@ async function fetchEventHistory() {
         orgName: 'City Food Bank',
         date: { toDate: () => new Date(Date.now() - 14 * 24 * 60 * 60 * 1000) },
         hours: 4
-      },
-      {
-        id: 'sample-3',
-        title: 'Youth Mentoring Program',
-        orgId: 'sample-org-3',
-        orgName: 'Local Youth Center',
-        date: { toDate: () => new Date(Date.now() - 21 * 24 * 60 * 60 * 1000) },
-        hours: 5
-      },
-      {
-        id: 'sample-4',
-        title: 'Park Trail Restoration',
-        orgId: 'sample-org-1',
-        orgName: 'Green Neighbors',
-        date: { toDate: () => new Date(Date.now() - 28 * 24 * 60 * 60 * 1000) },
-        hours: 6
-      },
-      {
-        id: 'sample-5',
-        title: 'Community Center Event Setup',
-        orgId: 'sample-org-4',
-        orgName: 'Community Center',
-        date: { toDate: () => new Date(Date.now() - 35 * 24 * 60 * 60 * 1000) },
-        hours: 2.5
-      },
-      {
-        id: 'sample-6',
-        title: 'Animal Shelter Volunteer',
-        orgId: 'sample-org-5',
-        orgName: 'City Animal Shelter',
-        date: { toDate: () => new Date(Date.now() - 42 * 24 * 60 * 60 * 1000) },
-        hours: 4
-      },
-      {
-        id: 'sample-7',
-        title: 'Beach Cleanup Drive',
-        orgId: 'sample-org-1',
-        orgName: 'Green Neighbors',
-        date: { toDate: () => new Date(Date.now() - 49 * 24 * 60 * 60 * 1000) },
-        hours: 3.5
-      },
-      {
-        id: 'sample-8',
-        title: 'Senior Citizen Assistance',
-        orgId: 'sample-org-6',
-        orgName: 'Senior Care Network',
-        date: { toDate: () => new Date(Date.now() - 56 * 24 * 60 * 60 * 1000) },
-        hours: 2
       }
     ];
   } catch (e) {
