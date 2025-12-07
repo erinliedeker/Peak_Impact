@@ -23,6 +23,11 @@
 
       <p v-if="error" class="error-message">{{ error }}</p>
     </form>
+  <div class="auth-footer">
+      <button @click="router.push('/signup')" class="link-button">
+        Don't have an account? Signup
+      </button>
+      </div>
   </div>
 </template>
 
