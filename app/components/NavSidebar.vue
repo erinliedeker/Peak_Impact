@@ -1,7 +1,8 @@
 <template>
   <aside class="sidebar">
     <div class="sidebar-header">
-      <h1 class="logo">Peak Impact 🏔️</h1>
+      <img src="~/assets/images/logo.png" alt="Peak Impact Logo" class="logo"/>
+      <h1 class="logo-text">Peak Impact</h1>
     </div>
 
     <nav class="nav-links">
@@ -77,11 +78,18 @@ const handleLogout = () => {
 
 /* Header & Logo */
 .sidebar-header {
+  display: flex;
+  flex-direction: row;
   margin-bottom: 2.5rem;
   padding-left: 0.5rem;
 }
 
 .logo {
+  width: 30px;
+  height:auto;
+}
+
+.logo-text {
   font-size: 1.5rem;
   font-weight: 800;
   color: var(--color-primary); /* Pikes Peak Blue */
