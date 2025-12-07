@@ -32,7 +32,7 @@
 
     <div v-else-if="error" class="status-message error-box">
         <p>🔴 {{ error }}</p>
-        <button @click="fetchOrganizations()">Try Again</button>
+        <button @click="fetchOrganizations('')">Try Again</button>
     </div>
 
     <div v-else class="org-grid">

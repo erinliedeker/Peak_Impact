@@ -98,8 +98,9 @@ const handleLogout = () => {
 }
 
 .logo {
-  width: 30px;
+  width: 60px;
   height:auto;
+  padding-right: 20px;
 }
 
 .logo-text {
