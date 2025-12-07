@@ -1,58 +1,33 @@
 <template>
-  <div class="page-root">
-  <header class="landing-header">
-    <div class="left">
-      <NuxtLink to="/" class="logo-link">
-        <img src="~/assets/images/logo.png" alt="App Logo" class="logo"/>
-      </NuxtLink>
-      <h1 class="page-title">Peak Impact</h1>
-    </div>
-    <div class="right">
-      <NuxtLink to="/" class="btn btn-primary">Sign In</NuxtLink>
-      <NuxtLink to="/" class="btn btn-secondary">Sign Up</NuxtLink>
-    </div>
-  </header>
-  <main>
-    <div class="landing-content">
-      <img src="~/assets/images/landing-image.png" class="landing-image" alt="two shaking hands in front of a mountain with the words: peak impact"/>
-    </div>
-  </main>
+  <div class="landing-content">
+    <img src="~/assets/images/landing-image.png" class="landing-image" alt="two shaking hands in front of a mountain with the words: peak impact"/>
   </div>
 </template>
 
 <script setup>
   definePageMeta({
-    layout: false,
+    layout: 'landing',
   });
 </script>
 
 <style scoped>
 
-.page-root {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-}
-
-.landing-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1rem 2rem;
-  background-color: #f9fafb;
-  border-bottom: 1px solid #e5e7eb;
-}
-
 .landing-content {
-  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
   display: flex;
   justify-content: center;
   align-items: top;
   background-color: var(--color-primary);
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .landing-image {
-  object-fit: cover;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  display: block;
 }
 
 .left {
