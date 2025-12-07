@@ -78,8 +78,12 @@ const handleLogout = () => {
 <style scoped>
 /* Sidebar Container */
 .sidebar {
-  height: 100%;
-  width: 100%;
+  top: 0;
+  bottom: 0; /* Anchors to bottom edge */
+  left: 0;
+  
+  height: 100dvh;
+  width: 260px;
   display: flex;
   flex-direction: column;
   padding: 1.5rem;
@@ -88,7 +92,6 @@ const handleLogout = () => {
   border-right: 1px solid var(--color-border);
   z-index: 50;
   overflow: hidden;
-  box-sizing: border-box;
 }
 
 /* Header & Logo */
@@ -100,9 +103,8 @@ const handleLogout = () => {
 }
 
 .logo {
-  width: 60px;
+  width: 30px;
   height:auto;
-  padding-right: 20px;
 }
 
 .logo-text {
