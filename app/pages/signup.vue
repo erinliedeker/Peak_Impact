@@ -76,6 +76,16 @@
       <p v-if="error" class="error-message">{{ error }}</p>
     </form>
 
+    <div class="oauth-divider">
+      <span>or</span>
+    </div>
+
+    <div class="oauth-buttons">
+      <button type="button" class="google-btn" @click="handleGoogleSignIn" :disabled="isLoading">
+        Continue with Google
+      </button>
+    </div>
+
     <div class="auth-footer">
       <button @click="router.push('/login')" class="link-button">
         Already have an account? Log In
@@ -86,8 +96,8 @@
 
 <script setup>
 import { ref } from 'vue'
-import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
-import { doc, setDoc, addDoc, collection } from 'firebase/firestore' // Added addDoc/collection
+import { createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup } from 'firebase/auth'
+import { doc, setDoc, getDoc, addDoc, collection } from 'firebase/firestore' // Added addDoc/collection
 
 const auth = useFirebaseAuth()
 const db = useFirestore()
@@ -198,6 +208,42 @@ async function handleSignUp() {
     // 6. Redirect
     router.push('/')
     
+  } catch (err) {
+    console.error(err)
+    error.value = err.message
+  } finally {
+    isLoading.value = false
+  }
+}
+
+// Google Sign-In flow
+async function handleGoogleSignIn() {
+  isLoading.value = true
+  error.value = null
+
+  try {
+    const provider = new GoogleAuthProvider()
+    const result = await signInWithPopup(auth, provider)
+    const user = result.user
+
+    const userRef = doc(db, 'users', user.uid)
+    const snapshot = await getDoc(userRef)
+
+    if (!snapshot.exists()) {
+      await setDoc(userRef, {
+        name: user.displayName || 'New User',
+        email: user.email || '',
+        age: null,
+        userType: 'Volunteer',
+        createdAt: new Date()
+      })
+    }
+
+    if (user.displayName) {
+      await updateProfile(user, { displayName: user.displayName })
+    }
+
+    router.push('/')
   } catch (err) {
     console.error(err)
     error.value = err.message
@@ -316,4 +362,53 @@ async function handleSignUp() {
   font-weight: 600; cursor: pointer; padding: 10px 0;
 }
 .link-button:hover { text-decoration: underline; }
+
+.oauth-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #4a5568;
+  font-size: 0.9rem;
+  margin: 20px 0;
+}
+
+.oauth-divider::before,
+.oauth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background-color: #e2e8f0;
+}
+
+.oauth-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.google-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background-color: white;
+  color: #2d3748;
+  font-weight: 600;
+  cursor: pointer;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.google-btn img { width: 20px; height: 20px; }
+
+.google-btn:hover { box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); }
+
+.google-btn:active {
+  transform: translateY(1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
 </style>

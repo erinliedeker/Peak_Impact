@@ -44,17 +44,8 @@ export const useFeed = () => {
     const uid = getUid()
     if (!uid) throw new Error('User not authenticated')
 
-    let photoUrl: string | null = null
 
-    // Upload photo if provided
-    if (photoFile) {
-      const timestamp = Date.now()
-      const fileName = `${timestamp}_${Math.random().toString(36).substring(7)}.jpg`
-      const photoRef = storageRef(storage, `posts/${uid}/${fileName}`)
-      
-      await uploadBytes(photoRef, photoFile)
-      photoUrl = await getDownloadURL(photoRef)
-    }
+    // Photo upload removed: Firebase Storage not available
 
     // Create post document
     const postsRef = collection(db, 'posts')
@@ -62,7 +53,7 @@ export const useFeed = () => {
       authorId: uid,
       authorName: authStore.profile?.name || currentUser.value?.displayName || 'User',
       text,
-      photoUrl,
+      // photoUrl removed: Firebase Storage not available
       organizationId,
       organizationName,
       timestamp: serverTimestamp(),
