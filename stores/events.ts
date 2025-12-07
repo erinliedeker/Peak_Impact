@@ -11,6 +11,7 @@ export const useEventsStore = defineStore('events', {
     state: (): EventsState => ({
         allEvents: [],
         organizationEvents: [],
+        userEvents: [],
         isLoading: false,
         activeFilters: {
             category: null,
@@ -124,6 +125,40 @@ export const useEventsStore = defineStore('events', {
                 console.error("Critical Fetch Error:", e);
                 this.error = 'Failed to load events: ' + e.message;
                 return []; 
+            } finally {
+                this.isLoading = false;
+            }
+        },
+
+        async fetchUserEvents(userId: string) {
+            this.isLoading = true;
+            this.error = null;
+
+            try {
+                // Option A: If you have a specific database index for this, call EventService.getByVolunteerId(userId)
+                // Option B: Fetch all and filter (easiest implementation without DB changes)
+                
+                // We fetch fresh data to ensure we have the latest status
+                const allLocalEvents = await EventService.getAll();
+
+                const myEvents = allLocalEvents.filter(event => {
+                    // Check if attendees array exists and has the user ID
+                    const attendanceRecord = event.attendees?.find(a => a.volunteerId === userId);
+                    
+                    // Filter: User is in list AND status is not cancelled
+                    return attendanceRecord && attendanceRecord.status !== 'cancelled';
+                });
+
+                // Sort by upcoming dates
+                myEvents.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+                this.userEvents = myEvents;
+                return myEvents;
+
+            } catch (e: any) {
+                console.error("Failed to fetch user events:", e);
+                this.error = 'Failed to load your schedule.';
+                return [];
             } finally {
                 this.isLoading = false;
             }
