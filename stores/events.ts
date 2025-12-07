@@ -1,8 +1,9 @@
 // stores/events.ts
 
 import { defineStore } from 'pinia';
-import type { EventsState, ConnectEvent, VolunteerAttendance } from '../types/event';
+import type { EventsState, ConnectEvent, VolunteerAttendance, Attendee } from '../types/event';
 import { EventService } from '../services/firestore/events'; // <-- Service is used
+import {UserService } from '../services/firestore/users'
 
 export const useEventsStore = defineStore('events', {
     state: (): EventsState => ({
@@ -190,6 +191,7 @@ export const useEventsStore = defineStore('events', {
             this.isLoading = true;
             try {
                 // 1. Get the raw attendance records
+                // Assuming EventService.getById is defined, which we just did
                 const event = await (EventService as any).getById(eventId); 
                 if (!event || !event.attendees) return [];
 
@@ -211,7 +213,7 @@ export const useEventsStore = defineStore('events', {
                     return {
                         uid: record.volunteerId,
                         name: user?.name || 'Unknown User',
-                        email: user?.email || 'N/A',
+                        email: user?.email || 'N/A', // Use the fetched email
                         status: record.status, 
                         checkInTime: record.checkInTime,
                         checkOutTime: record.checkOutTime,
