@@ -3,20 +3,40 @@
     @search="onSearch"
     @update:filters="onFiltersUpdate"
   />
-  <EventList 
-  :events="filteredEvents" 
-  @select="openEvent"
-  />
-
-  {{ $route.params.id }}
+  <div class="content-window">
+    <div class="event-list-container">
+      <EventList class="event-list"
+      :events="displayedEvents" 
+      @select="openEvent"
+      />
+    </div>
+    <div class="event-card-container">
+      <EventCard class="event-card"
+        v-if="selectedEvent"
+        :item="selectedEvent"
+      />
+    </div>
+  </div>
 
   <div v-if="loading" class="placeholder-page">Loading events...</div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import EventSearchBar from '@/components/events/EventSearchBar.vue'
+import EventList from '@/components/events/EventList.vue'
+import EventCard from '@/components/events/EventCard.vue'
+import { useEventsStore } from '../stores/events.ts'
+
+const router = useRouter()
 const filters = ref({})
 const query = ref('')
+
+const allEvents = ref([])
+const displayedEvents = ref([])
+const selectedEvent = ref(null)
+const loading = ref(false)
 
 function filterEvents({ query: q, filters: f }) {
   const qLower = (q || '').trim().toLowerCase()
@@ -64,23 +84,16 @@ function onFiltersUpdate(newFilters) {
 
 function openEvent(ev) {
   // navigate or open detail — implement as needed
-  console.log('selected event', ev)
+  selectedEvent.value = ev
 }
 
 
-// Example fetch — replace with API call
 async function fetchEvents() {
   loading.value = true
   try {
-    // replace with real fetch
-    await new Promise(r => setTimeout(r, 200)) // fake delay
-    allEvents.value = [
-      { id: 1, name: 'Beach Cleanup', organizer: { name: 'Ocean Org', avatar: '' }, category: 'volunteer', status: 'open', date: '2026-01-12' },
-      { id: 2, name: 'Community Fundraiser', organizer: { name: 'Help Together', avatar: '' }, category: 'fundraiser', status: 'open', date: '2025-11-01' },
-      { id: 3, name: 'Team Meeting', organizer: { name: 'Peak Impact', avatar: '' }, category: 'meeting', status: 'full', date: '2024-10-10' }
-    ]
-    // initial display
-    displayedEvents.value = allEvents.value
+   allEvents.value = await useEventsStore().fetchEvents()
+   console.log('Fetched events:', allEvents.value)
+   displayedEvents.value = allEvents.value
   } finally {
     loading.value = false
   }
@@ -90,6 +103,43 @@ onMounted(fetchEvents)
 </script>
 
 <style scoped>
+
+.content-window {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  height: 100%;
+}
+
+.event-list-container {
+  width: 40%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  overflow: auto;
+  box-sizing: border-box;
+}
+
+.event-list {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+.event-card-container {
+  width:60%;
+  border-left: 1px solid var(--color-border);
+  background-color: var(--color-light-bg);
+}
+
+.event-card {
+  width: auto;
+  height: 100%;
+  overflow-y: auto;
+}
+
 .placeholder-page {
   text-align: center;
   margin-top: 3rem;

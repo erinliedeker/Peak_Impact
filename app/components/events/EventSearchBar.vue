@@ -99,7 +99,7 @@ function toggleFilters() {
 }
 
 // close dropdown on outside click
-const filterRoot = ref(filterRoot)
+const filterRoot = ref(null)
 function onDocClick(e) {
   if (filterRoot.value && !filterRoot.value.contains(e.target)) openFilters.value = false
 }
@@ -108,7 +108,13 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
 </script>
 
 <style scoped>
-.event-search-bar { display: block; padding: 8px 6px; }
+.event-search-bar { 
+    display: flex; 
+    padding: 8px 6px; 
+    border-bottom: 1px solid #e5e7eb;
+    background-color: var(--color-white);
+    top: 0;
+}
 .search-form {
   display: flex;
   gap: 8px;
@@ -120,6 +126,7 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
   border: 1px solid #e5e7eb;
   border-radius: 8px;
   background: #fff;
+  min-width: 300px;
 }
 .search-btn, .filters-toggle {
   padding: 8px 10px;
@@ -128,6 +135,14 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
   border-radius: 8px;
   cursor: pointer;
 }
+
+.filters {
+    display: flex;
+    flex-direction: row;
+    right: 0;
+    
+}
+
 .control { position: relative; }
 .filters-dropdown {
   position: absolute;

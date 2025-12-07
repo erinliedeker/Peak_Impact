@@ -36,20 +36,24 @@ const props = defineProps({
 .event-list {
   max-height: 360px;
   overflow-y: auto;
-  padding: 6px;
-  display: block;
+  padding: 8px;
+  display: flex;
+  align-items: stretch;
 }
 
 .list {
+  width: 100%;
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
+  align-items: stretch;
   gap: 8px;
 }
 
 .event-item {
+  width: 100%;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -57,6 +61,9 @@ const props = defineProps({
   border-radius: 8px;
   cursor: pointer;
   transition: background .12s ease;
+  background-color: var(--color-white);
+  border: 1px solid var(--color-border);
+  box-sizing: border-box;
 }
 
 .event-item:hover { background: rgba(142, 137, 137, 0.03); }

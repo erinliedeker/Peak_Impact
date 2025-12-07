@@ -3,8 +3,9 @@
   /* --- BRAND COLORS --- */
   --color-primary:   #2C5282; /* Pikes Peak Blue (Headers, Active States) */
   --color-secondary: #2F855A; /* Evergreen (Success, Nature Tags) */
+  --color-secondary-dark: #276749; /* Darker Evergreen (Hover States) */
   --color-accent:    #DD6B20; /* Garden Sandstone (Buttons, Alerts) */
-  
+
   /* --- UI COLORS --- */
   --color-bg:        #F7FAFC; /* Snow Capped (Page Backgrounds) */
   --color-text-main: #2D3748; /* Dark Grey (Headings) */
