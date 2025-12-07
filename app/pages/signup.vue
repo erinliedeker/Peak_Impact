@@ -222,6 +222,7 @@ async function createFirestoreProfile(user, userType, isOAuth = false) {
         age: isOAuth ? null : parseInt(age.value), // Age might not be available for OAuth signups
         userType: userType, 
         createdAt: new Date(),
+        impactPoints: 0, // Initialize impact points for new users
         // 2. Save Interests: Interests are shared regardless of signup method
         interests: accountType.value === 'individual' ? selectedInterests.value : []
     }
@@ -319,6 +320,7 @@ async function handleGoogleSignIn() {
         email: user.email || '',
         age: null,
         userType: 'Volunteer',
+        impactPoints: 0,
         createdAt: new Date()
       })
     }

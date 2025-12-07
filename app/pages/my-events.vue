@@ -234,8 +234,8 @@ const userStats = computed(() => {
   // Round hours to 1 decimal place for display
   const displayHours = Math.round(totalHours * 10) / 10;
 
-  // Impact Score: (Events * 10) + (Floored Hours * 5) + (Orgs * 20 bonus)
-  const impactScore = Math.floor((completedCount * 10) + (Math.floor(totalHours) * 5));
+  // Impact Score: Use actual impactPoints from user profile
+  const impactScore = auth.profile?.impactPoints || 0;
 
   return { 
       completedCount, 
