@@ -31,6 +31,14 @@ const props = defineProps({
   defaultAvatar: { type: String, default: '/assets/avatar-placeholder.png' }
 })
 
+const internalSelected = ref(null)
+const activeId = computed(() => internalSelected.value)
+
+function onClick(event) {
+  internalSelected.value = event.id
+  $emit('select', event)
+}
+
 // --- Category Icon Logic ---
 
 function getCategoryIcon(category) {
@@ -49,14 +57,6 @@ function getCategoryIcon(category) {
 function getCategoryClass(category) {
     // Converts categories like 'PublicSafety' to 'publicsafety' for CSS matching
     return (category || 'default').toLowerCase();
-}
-
-const internalSelected = ref(null)
-const activeId = computed(() => internalSelected.value)
-
-function onClick(event) {
-  internalSelected.value = event.id
-  $emit('select', event)
 }
 </script>
 
