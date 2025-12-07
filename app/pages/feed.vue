@@ -154,7 +154,7 @@
             >
               {{ isLikedByUser(post) ? '❤️' : '🤍' }} Like
             </button>
-            <button class="action-btn">💬 Comment</button>
+            <button class="action-btn" @click="toggleComments(post.id)">💬 Comment</button>
             <button class="action-btn" @click="copyShareLink(post.id)">↗️ Share</button>
           </div>
 
@@ -207,7 +207,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
+import { collection, query, orderBy, onSnapshot, type Unsubscribe } from 'firebase/firestore'
 import { useAuthStore } from '../../stores/auth'
 import { useFeed } from '../../composables/useFeed'
 import { useCollection } from 'vuefire'
@@ -217,7 +218,8 @@ import { useCollection } from 'vuefire'
 import type { Post } from '../../types'
 
 const authStore = useAuthStore()
-const { createPost, toggleLike, getAllPostsQuery, getOrgPostsQuery } = useFeed()
+const { createPost, toggleLike, addComment, getAllPostsQuery, getOrgPostsQuery } = useFeed()
+const db = useFirestore()
 
 // State
 const loading = ref(false)
@@ -229,6 +231,12 @@ const postOrg = ref('')
 const selectedOrg = ref<any>(null)
 const userEventCount = ref(0)
 const userHours = ref(0)
+
+// Comments state
+const showComments = ref<Record<string, boolean>>({})
+const commentTexts = ref<Record<string, string>>({})
+const postComments = ref<Record<string, any[]>>({})
+const commentsUnsubscribers = ref<Record<string, Unsubscribe>>({})
 
 // Mock organizations for now - TODO: Replace with real Firestore org data
 const organizations = ref([
@@ -385,6 +393,52 @@ function copyShareLink(postId: string) {
     console.error('Failed to copy link:', err)
   })
 }
+
+// Toggle comments visibility
+function toggleComments(postId: string) {
+  showComments.value[postId] = !showComments.value[postId]
+  
+  // Load comments when opening
+  if (showComments.value[postId] && !postComments.value[postId]) {
+    loadComments(postId)
+  }
+}
+
+// Load comments for a post
+function loadComments(postId: string) {
+  const commentsRef = collection(db, 'posts', postId, 'comments')
+  const q = query(commentsRef, orderBy('timestamp', 'desc'))
+  
+  // Real-time listener
+  const unsubscribe = onSnapshot(q, (snapshot) => {
+    postComments.value[postId] = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      timestamp: doc.data().timestamp?.toDate?.() || new Date()
+    }))
+  })
+  
+  commentsUnsubscribers.value[postId] = unsubscribe
+}
+
+// Submit a comment
+async function submitComment(postId: string) {
+  const text = commentTexts.value[postId]?.trim()
+  if (!text) return
+
+  try {
+    await addComment(postId, text)
+    commentTexts.value[postId] = '' // Clear input
+  } catch (error: any) {
+    console.error('[Feed] Comment error:', error)
+    alert('Failed to post comment: ' + error.message)
+  }
+}
+
+// Cleanup: unsubscribe from comment listeners
+onUnmounted(() => {
+  Object.values(commentsUnsubscribers.value).forEach(unsubscribe => unsubscribe?.())
+})
 
 // Set sample stats for now
 userEventCount.value = 8
@@ -878,6 +932,135 @@ userHours.value = 42.5
 .action-btn.liked {
   color: #ef4444;
   font-weight: 600;
+}
+
+/* Comments Section */
+.comments-section {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.comment-input-wrapper {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.comment-avatar {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 700;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.comment-input {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 24px;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.comment-input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.comment-submit-btn {
+  padding: 0.75rem 1.5rem;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 24px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.9rem;
+}
+
+.comment-submit-btn:hover:not(:disabled) {
+  background: #764ba2;
+}
+
+.comment-submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.comments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.comment-item {
+  display: flex;
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.comment-avatar-small {
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+.comment-bubble {
+  flex: 1;
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+}
+
+.comment-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.comment-author {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: #1e293b;
+}
+
+.comment-time {
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.comment-text {
+  font-size: 0.9rem;
+  color: #475569;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.no-comments {
+  text-align: center;
+  padding: 1.5rem;
+  color: #94a3b8;
+  font-size: 0.9rem;
+  font-style: italic;
 }
 
 .loading {
