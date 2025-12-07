@@ -199,7 +199,26 @@ const postsQuery = computed(() => {
   return getAllPostsQuery()
 })
 
-const feedPosts = useCollection<Post>(postsQuery, { ssrKey: 'feed-posts' })
+const feedPostsRaw = useCollection(postsQuery, { ssrKey: 'feed-posts' })
+
+// Normalize Firestore docs into UI-friendly objects
+const feedPosts = computed<Post[]>(() => {
+  return (feedPostsRaw.value || []).map((doc: any) => {
+    const timestamp = doc.timestamp?.toDate ? doc.timestamp.toDate() : (doc.timestamp || new Date())
+    return {
+      id: doc.id || doc.__id || '',
+      authorId: doc.authorId || '',
+      authorName: doc.authorName || 'User',
+      text: doc.text || '',
+      photoUrl: doc.photoUrl || null,
+      organizationId: doc.organizationId || null,
+      organizationName: doc.organizationName || null,
+      timestamp,
+      likes: Array.isArray(doc.likes) ? doc.likes : [],
+      commentsCount: doc.commentsCount || 0
+    }
+  })
+})
 
 // Computed properties
 const userInitials = computed(() => {
@@ -274,9 +293,12 @@ function isLikedByUser(post: Post): boolean {
 }
 
 // Format time helper
-function formatTime(date: Date): string {
+function formatTime(value: any): string {
+  const date = value?.toDate ? value.toDate() : value
+  const target = date instanceof Date ? date : new Date()
+
   const now = new Date()
-  const diff = now.getTime() - date.getTime()
+  const diff = now.getTime() - target.getTime()
   const minutes = Math.floor(diff / (1000 * 60))
   const hours = Math.floor(diff / (1000 * 60 * 60))
   const days = Math.floor(diff / (1000 * 60 * 60 * 24))

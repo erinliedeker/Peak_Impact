@@ -1,6 +1,6 @@
-import { 
-  collection, 
-  addDoc, 
+import {
+  collection,
+  addDoc,
   updateDoc,
   doc,
   arrayUnion,
@@ -9,17 +9,28 @@ import {
   query,
   orderBy,
   where,
-  Timestamp,
   serverTimestamp
 } from 'firebase/firestore'
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { useAuthStore } from '../stores/auth'
+import { useCurrentUser } from 'vuefire'
 import type { Post, Comment } from '../types'
 
 export const useFeed = () => {
   const db = useFirestore()
   const storage = useFirebaseStorage()
   const authStore = useAuthStore()
+  const currentUser = useCurrentUser()
+
+  // Resolve a stable user id (prefer Firebase auth uid)
+  const getUid = () => {
+    return (
+      currentUser.value?.uid ||
+      (authStore.profile as any)?.uid ||
+      (authStore.profile as any)?.id?.toString() ||
+      null
+    )
+  }
 
   /**
    * Create a new post
@@ -30,7 +41,8 @@ export const useFeed = () => {
     organizationId: string | null = null,
     organizationName: string | null = null
   ) => {
-    if (!authStore.profile) throw new Error('User not authenticated')
+    const uid = getUid()
+    if (!uid) throw new Error('User not authenticated')
 
     let photoUrl: string | null = null
 
@@ -38,7 +50,7 @@ export const useFeed = () => {
     if (photoFile) {
       const timestamp = Date.now()
       const fileName = `${timestamp}_${Math.random().toString(36).substring(7)}.jpg`
-      const photoRef = storageRef(storage, `posts/${authStore.profile.id}/${fileName}`)
+      const photoRef = storageRef(storage, `posts/${uid}/${fileName}`)
       
       await uploadBytes(photoRef, photoFile)
       photoUrl = await getDownloadURL(photoRef)
@@ -47,8 +59,8 @@ export const useFeed = () => {
     // Create post document
     const postsRef = collection(db, 'posts')
     const postData = {
-      authorId: String(authStore.profile.id),
-      authorName: authStore.profile.name,
+      authorId: uid,
+      authorName: authStore.profile?.name || currentUser.value?.displayName || 'User',
       text,
       photoUrl,
       organizationId,
@@ -66,14 +78,14 @@ export const useFeed = () => {
    * Toggle like on a post
    */
   const toggleLike = async (postId: string, currentLikes: string[]) => {
-    if (!authStore.profile) throw new Error('User not authenticated')
+    const uid = getUid()
+    if (!uid) throw new Error('User not authenticated')
 
     const postRef = doc(db, 'posts', postId)
-    const userId = String(authStore.profile.id)
-    const isLiked = currentLikes.includes(userId)
+    const isLiked = currentLikes.includes(uid)
 
     await updateDoc(postRef, {
-      likes: isLiked ? arrayRemove(userId) : arrayUnion(userId)
+      likes: isLiked ? arrayRemove(uid) : arrayUnion(uid)
     })
   }
 
@@ -81,14 +93,15 @@ export const useFeed = () => {
    * Add a comment to a post
    */
   const addComment = async (postId: string, text: string) => {
-    if (!authStore.profile) throw new Error('User not authenticated')
+    const uid = getUid()
+    if (!uid) throw new Error('User not authenticated')
 
     // Add comment to subcollection
     const commentsRef = collection(db, 'posts', postId, 'comments')
     await addDoc(commentsRef, {
       postId,
-      authorId: String(authStore.profile.id),
-      authorName: authStore.profile.name,
+      authorId: uid,
+      authorName: authStore.profile?.name || currentUser.value?.displayName || 'User',
       text,
       timestamp: serverTimestamp()
     })
