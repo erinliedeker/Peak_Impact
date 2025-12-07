@@ -95,7 +95,6 @@ function onFiltersUpdate(newFilters) {
 function openEvent(ev) {
   // navigate or open detail — implement as needed
   selectedEvent.value = ev
-  console.log('Selected event:', ev)
 }
 
 
