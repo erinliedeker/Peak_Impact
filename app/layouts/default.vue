@@ -43,7 +43,6 @@
 
 .page-content {
   flex: 1 1 auto;
-  overflow: hidden;
   box-sizing: border-box;
   min-width: 0;
 }

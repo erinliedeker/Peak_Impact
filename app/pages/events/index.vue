@@ -1,9 +1,11 @@
 <template>
   <div class="events-page">
-    <EventSearchBar
-      @search="onSearch"
-      @update:filters="onFiltersUpdate"
-    />
+    <div class="search-bar-container">
+      <EventSearchBar
+        @search="onSearch"
+        @update:filters="onFiltersUpdate"
+      />
+    </div>
     <div class="content-window">
       <div class="event-list-container">
         <EventList class="event-list"
@@ -18,7 +20,6 @@
         />
       </div>
     </div>
-
   </div>  
   <div v-if="loading" class="placeholder-page">Loading events...</div>
 </template>
@@ -105,7 +106,6 @@ async function fetchEvents() {
   loading.value = true
   try {
    allEvents.value = await useEventsStore().fetchEvents()
-   console.log('Fetched events:', allEvents.value);
    displayedEvents.value = allEvents.value
    if(!selectedEvent.value) {
     openEvent(allEvents.value[0])
@@ -126,13 +126,19 @@ onMounted(fetchEvents)
   height: 100%;
   display: flex;
   flex-direction: column;
+
+}
+
+.search-bar-container {
+  min-height: 50px;
+  background-color: var(--color-bg);
 }
 
 .content-window {
   display: flex;
   flex-direction: row;
   width: 100%;
-  height: 100%;
+  height: calc(100% - 50px);
   overflow: clip;
 }
 
