@@ -18,11 +18,12 @@
 <style scoped>
 .app-container {
   display: grid;
-  /* Updated to 309px to match your preferred sidebar width */
   grid-template-columns: 309px 1fr; 
   height: 100vh;
+  width: 100%;
   overflow: hidden;
-  background-color: var(--color-bg); /* Kept your bg color */
+  background-color: var(--color-bg);
+  box-sizing: border-box;
 }
 
 .sidebar-wrapper {
@@ -35,13 +36,17 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  overflow: hidden;
+  width: 100%;
+  overflow: auto;
   position: relative;
+  min-width: 0;
 }
 
 .page-content {
-  flex: 1;
+  flex: 1 1 auto;
   overflow-y: auto;
-  padding: 2rem;
+  overflow-x: auto;
+  box-sizing: border-box;
+  min-width: 0;
 }
 </style>
