@@ -2,12 +2,7 @@
 
 import { defineStore } from 'pinia';
 import type { EventsState, ConnectEvent, VolunteerAttendance } from '../types/event';
-import { useAuthStore } from './auth'; // Note: Imported but not used in this specific file snippet
 import { EventService } from '../services/firestore/events'; // <-- Service is used
-
-// 🚨 REMOVED: The dummy data function 'simulateEventFetch' is no longer needed.
-// The data will now come from EventService.getAll().
-
 
 export const useEventsStore = defineStore('events', {
     state: (): EventsState => ({
@@ -43,11 +38,19 @@ export const useEventsStore = defineStore('events', {
             this.isLoading = true;
             this.error = null;
             try {
-                // 🚀 CHANGE: Use the real service function to fetch data
+                // 1. Fetch data from service
                 const events = await EventService.getAll();
+                
+                // 2. Update State
                 this.allEvents = events;
+
+                // 3. ✅ RETURN THE DATA
+                // This fixes the "undefined" error in your component
+                return events; 
+
             } catch (e: any) {
                 this.error = 'Failed to load events: ' + e.message;
+                return []; // Return empty array on error to prevent crashes
             } finally {
                 this.isLoading = false;
             }
@@ -62,9 +65,13 @@ export const useEventsStore = defineStore('events', {
             try {
                 const events = await EventService.getByOrganizationId(orgId);
                 this.organizationEvents = events;
+
+                // ✅ Return here as well for consistency
+                return events;
             } catch (e: any) {
                 console.error("Failed to load organization events:", e);
                 this.error = 'Failed to load your events.';
+                return [];
             } finally {
                 this.isLoading = false;
             }
@@ -79,7 +86,14 @@ export const useEventsStore = defineStore('events', {
             
             try {
                 const newId = await EventService.create(eventData);
-                const newEvent: ConnectEvent = { ...eventData, id: newId };
+                // Create a local object to update UI immediately
+                // Note: We use the helper logic logic from the service if we need a safe object,
+                // but simpler is fine here for immediate UI feedback.
+                const newEvent: ConnectEvent = { 
+                    ...eventData, 
+                    id: newId,
+                    createdAt: new Date().toISOString() // Fallback for local display
+                };
                 
                 // 1. Add to general events list
                 this.allEvents.unshift(newEvent);
@@ -95,69 +109,87 @@ export const useEventsStore = defineStore('events', {
                 this.isLoading = false;
             }
         },
+        async signUpVolunteer(eventId: string, volunteer: VolunteerAttendance) {
+            const event = this.allEvents.find(e => e.id === eventId);
+            if (!event) return;
 
-        // --- ATTENDANCE ACTIONS (In-memory updates only, for now) ---
+            // 1. Add to local state
+            event.attendees.push(volunteer);
+            event.volunteersSignedUp = (event.volunteersSignedUp || 0) + 1;
+
+            // 2. Persist to Firestore
+            try {
+                // Update the array AND the count
+                await EventService.update(eventId, { 
+                    attendees: event.attendees,
+                    volunteersSignedUp: event.volunteersSignedUp 
+                });
+            } catch (err) {
+                console.error("Failed to sign up volunteer", err);
+                // Optional: Revert local state on error
+            }
+        },
 
         /**
-         * Org Admin action to check-in a volunteer for an event.
-         * @param eventId - The ID of the event (string or number).
-         * @param volunteerId - The ID of the volunteer being checked in.
+         * Org Admin action to check-in a volunteer.
          */
-        // async checkInVolunteer(eventId: string | number, volunteerId: number) {
-        //     const event = this.allEvents.find(e => e.id === eventId);
-        //     if (!event) return;
+        async checkInVolunteer(eventId: string, volunteerId: number) {
+            const event = this.allEvents.find(e => e.id === eventId);
+            if (!event) return;
 
-        //     const record = event.attendees.find(a => a.volunteerId === volunteerId);
+            const record = event.attendees.find(a => a.volunteerId === volunteerId);
 
-        //     if (record && !record.checkInTime) {
-        //         record.checkInTime = new Date().toISOString();
-        //         // TODO: API call to update attendance record on server
-        //         console.log(`Volunteer ${volunteerId} checked IN for Event ${eventId}.`);
-        //     }
-        // },
-
-        /**
-         * Org Admin action to check-out a volunteer and finalize hours.
-         * @param eventId - The ID of the event (string or number).
-         * @param volunteerId - The ID of the volunteer being checked out.
-         */
-        // async checkOutVolunteer(eventId: string | number, volunteerId: number) {
-        //     const event = this.allEvents.find(e => e.id === eventId);
-        //     const record = event?.attendees.find(a => a.volunteerId === volunteerId);
-
-        //     if (record && record.checkInTime && !record.checkOutTime) {
-        //         record.checkOutTime = new Date().toISOString();
-        //         record.hoursVerified = true; 
+            if (record && !record.checkInTime) {
+                // 1. Update local state
+                record.checkInTime = new Date().toISOString();
                 
-        //         // TODO: API call to update attendance record on server
-        //         console.log(`Volunteer ${volunteerId} checked OUT for Event ${eventId}. Hours Verified.`);
-        //     }
-        // },
-
-        // --- SERVICE HOUR VERIFICATION ACTION ---
+                // 2. Persist to Firestore
+                console.log(`Saving Check-In for ${volunteerId}...`);
+                await EventService.updateAttendees(String(eventId), event.attendees);
+            }
+        },
 
         /**
-         * Generates and marks the service hour verification letter as sent.
-         * @param eventId - The ID of the completed event (string or number).
-         * @param volunteerId - The ID of the volunteer needing the letter.
+         * Org Admin action to check-out a volunteer.
          */
-        // async generateVerificationLetter(eventId: string | number, volunteerId: number) {
-        //     const event = this.allEvents.find(e => e.id === eventId);
-        //     const record = event?.attendees.find(a => a.volunteerId === volunteerId);
+        async checkOutVolunteer(eventId: string, volunteerId: number) {
+            const event = this.allEvents.find(e => e.id === eventId);
+            if (!event) return;
 
-        //     if (record && record.hoursVerified && !record.verificationLetterSent) {
-        //         const checkIn = new Date(record.checkInTime!);
-        //         const checkOut = new Date(record.checkOutTime!);
-        //         const totalMinutes = (checkOut.getTime() - checkIn.getTime()) / (1000 * 60);
-        //         const totalHours = Math.round(totalMinutes / 60 * 10) / 10;
+            const record = event.attendees.find(a => a.volunteerId === volunteerId);
 
-        //         const letterContent = `... Letter content for ${totalHours} hours ...`;
-
-        //         // TODO: API call to generate and email/download the PDF based on letterContent
+            if (record && record.checkInTime && !record.checkOutTime) {
+                // 1. Update local state
+                record.checkOutTime = new Date().toISOString();
+                record.hoursVerified = true; 
                 
-        //         record.verificationLetterSent = true;
-        //         console.log(`Verification letter generated for ${record.volunteerName}: ${totalHours} hours.`);
-        //     }
-        // },
+                // 2. Persist to Firestore
+                console.log(`Saving Check-Out for ${volunteerId}...`);
+                await EventService.updateAttendees(String(eventId), event.attendees);
+            }
+        },
+
+        /**
+         * Generates verification letter (Updates status).
+         */
+        async generateVerificationLetter(eventId: string, volunteerId: number) {
+            const event = this.allEvents.find(e => e.id === eventId);
+            const record = event?.attendees.find(a => a.volunteerId === volunteerId);
+
+            if (record && record.hoursVerified && !record.verificationLetterSent) {
+                // 1. Logic to generate letter (omitted for brevity)
+                const checkIn = new Date(record.checkInTime!);
+                const checkOut = new Date(record.checkOutTime!);
+                const totalHours = ((checkOut.getTime() - checkIn.getTime()) / 3600000).toFixed(1);
+                
+                console.log(`Generated letter for ${totalHours} hours.`);
+
+                // 2. Update status
+                record.verificationLetterSent = true;
+
+                // 3. Persist to Firestore
+                await EventService.updateAttendees(String(eventId), event!.attendees);
+            }
+        },
     },
 });
