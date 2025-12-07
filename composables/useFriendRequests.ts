@@ -72,7 +72,6 @@ export const useFriendRequests = () => {
       throw new Error('Not authorized to accept this request')
     }
 
-    console.log(`[useFriendRequests] Accepting request from ${requestData.from} to ${requestData.to}`);
 
     // Create the follow relationship (requester follows accepter)
     const followId = `${requestData.from}_${requestData.to}`
@@ -82,7 +81,6 @@ export const useFriendRequests = () => {
       status: 'active',
       createdAt: serverTimestamp()
     })
-    console.log(`[useFriendRequests] Created follow doc: ${followId}`);
 
     // Create mutual follow relationship (accepter follows requester)
     const mutualFollowId = `${requestData.to}_${requestData.from}`
@@ -92,14 +90,12 @@ export const useFriendRequests = () => {
       status: 'active',
       createdAt: serverTimestamp()
     })
-    console.log(`[useFriendRequests] Created mutual follow doc: ${mutualFollowId}`);
 
     // Update request status to accepted
     await updateDoc(requestRef, {
       status: 'accepted',
       acceptedAt: serverTimestamp()
     })
-    console.log(`[useFriendRequests] Updated request ${requestId} to accepted`);
   }
 
   /**
@@ -245,7 +241,6 @@ export const useFriendRequests = () => {
 
     // Combine and deduplicate
     const allFollowerIds = [...new Set([...followerIds, ...pendingFollowerIds])]
-    console.log(`[useFriendRequests] getFollowers(${targetUserId}):`, allFollowerIds);
     
     return allFollowerIds
   }
@@ -276,7 +271,6 @@ export const useFriendRequests = () => {
 
     // Combine and deduplicate
     const allFollowingIds = [...new Set([...followingIds, ...pendingFollowingIds])]
-    console.log(`[useFriendRequests] getFollowing(${targetUserId}):`, allFollowingIds);
     
     return allFollowingIds
   }
