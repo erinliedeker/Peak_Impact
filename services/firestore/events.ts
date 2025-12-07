@@ -17,8 +17,6 @@ import type { ConnectEvent, GeoLocation, VolunteerAttendance } from '~~/types/ev
 // ------------------------------------------------------------------
 // 1. HELPER: Get Collection Reference
 // ------------------------------------------------------------------
-// This mirrors the pattern in your working OrgService. 
-// It ensures getFirestore() is called at the correct time.
 const getEventCollection = () => collection(getFirestore(), 'events');
 
 // ------------------------------------------------------------------
@@ -26,12 +24,11 @@ const getEventCollection = () => collection(getFirestore(), 'events');
 // ------------------------------------------------------------------
 const mapDocToEvent = (docSnap: QueryDocumentSnapshot<DocumentData>): ConnectEvent => {
     const data = docSnap.data();
-    console.log(data)
+    // console.log(data) // debug if needed
 
     // Helper: Safe Timestamp -> ISO String conversion
     const toIsoString = (val: any): string | null => {
         if (!val) return null;
-        // Check if it's a Firestore Timestamp (has toDate method)
         if (typeof val.toDate === 'function') {
             return val.toDate().toISOString();
         }
@@ -39,26 +36,29 @@ const mapDocToEvent = (docSnap: QueryDocumentSnapshot<DocumentData>): ConnectEve
     };
     
     // Helper: Safe Location mapping
+    // We strictly map Firestore locations to the GeoLocation object structure
+    // effectively ignoring the "string" type option used for Mobilize.
     const mapLocation: GeoLocation = data.location && typeof data.location.lat === 'number'
         ? { lat: data.location.lat, lng: data.location.lng }
-        : { lat: 0, lng: 0 }; 
+        : { lat: 0, lng: 0}; 
 
     // Helper: Safe Attendee mapping
     const mapAttendee = (att: any): VolunteerAttendance => ({
         volunteerId: att.volunteerId || 0,
-        volunteerName: att.volunteerName || 'Unknown',
-        signedUp: !!att.signedUp, 
+        // Optional chaining handles missing fields gracefully
+        checkInTime: toIsoString(att.checkInTime) || null,
+        checkOutTime: toIsoString(att.checkOutTime) || null,
         hoursVerified: !!att.hoursVerified,
         verificationLetterSent: !!att.verificationLetterSent,
-        checkInTime: toIsoString(att.checkInTime),
-        checkOutTime: toIsoString(att.checkOutTime),
+        volunteerName: '',
+        signedUp: false
     });
 
     return {
         id: docSnap.id, 
         title: data.title || 'Untitled Event',
         description: data.description || '',
-        organizationId: String(data.organizationId) || '', // Force string to match ID types
+        organizationId: String(data.organizationId) || '',
         organizationName: data.organizationName || 'Unknown Organization',
         
         location: mapLocation, 
@@ -66,7 +66,6 @@ const mapDocToEvent = (docSnap: QueryDocumentSnapshot<DocumentData>): ConnectEve
         date: data.date || '',
         time: data.time || '',
         
-        // Cast is needed for strict union type in your interface
         category: (data.category as ConnectEvent['category']) || 'Social', 
         
         volunteersNeeded: data.volunteersNeeded || 0,
@@ -77,6 +76,13 @@ const mapDocToEvent = (docSnap: QueryDocumentSnapshot<DocumentData>): ConnectEve
         attendees: (data.attendees || []).map(mapAttendee), 
         
         createdAt: toIsoString(data.createdAt) || new Date().toISOString(),
+
+        // --- NEW FIELDS HANDLED SAFELY ---
+        // If these don't exist in Firestore, they default to false/undefined
+        // preventing the "External" UI from triggering accidentally.
+        isExternal: !!data.isExternal, 
+        externalUrl: data.externalUrl || undefined,
+        imageUrl: data.imageUrl || undefined
     };
 };
 
@@ -91,9 +97,10 @@ export const EventService = {
         const payload = {
             ...eventData,
             createdAt: Timestamp.now(),
+            // Ensure external flags are false for internal creations unless specified
+            isExternal: false, 
         };
 
-        // Uses the helper function (fixes "fetch undefined")
         const docRef = await addDoc(getEventCollection(), payload);
         return docRef.id;
     },
@@ -103,13 +110,10 @@ export const EventService = {
      */
     async update(id: string | number, eventData: Partial<ConnectEvent>): Promise<void> {
         const db = getFirestore();
-        // Create a reference to the specific document
         const eventRef = doc(db, 'events', String(id));
         
-        // Remove the 'id' from the payload to prevent writing it as a field inside the document
         const { id: _, ...updatePayload } = eventData;
 
-        // Perform the update
         await updateDoc(eventRef, updatePayload);
     },
 
@@ -117,9 +121,7 @@ export const EventService = {
      * Fetch ALL events
      */
     async getAll(): Promise<ConnectEvent[]> {
-        // Uses the helper function (fixes "fetch undefined")
         const snapshot = await getDocs(getEventCollection());
-        
         return snapshot.docs.map(mapDocToEvent);
     },
 
@@ -128,8 +130,6 @@ export const EventService = {
      */
     async getByOrganizationId(orgId: string | number): Promise<ConnectEvent[]> {
         const eventsCollection = getEventCollection();
-        
-        // Query events where the 'organizationId' matches
         const q = query(eventsCollection, where("organizationId", "==", String(orgId)));
         
         const snapshot = await getDocs(q);
@@ -139,7 +139,6 @@ export const EventService = {
         const db = getFirestore();
         const eventRef = doc(db, 'events', eventId);
 
-        // We update JUST the attendees array field
         await updateDoc(eventRef, {
             attendees: attendees
         });

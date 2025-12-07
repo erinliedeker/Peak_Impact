@@ -95,6 +95,7 @@ function onFiltersUpdate(newFilters) {
 function openEvent(ev) {
   // navigate or open detail — implement as needed
   selectedEvent.value = ev
+  console.log('Selected event:', ev)
 }
 
 
@@ -102,8 +103,12 @@ async function fetchEvents() {
   loading.value = true
   try {
    allEvents.value = await useEventsStore().fetchEvents()
-   console.log('Fetched events:', allEvents.value)
-   displayedEvents.value = allEvents.value
+   displayedEvents.value = allEvents.value.slice()
+   console.log('selected Event', selectedEvent.value)
+   if(!selectedEvent.value) {
+    openEvent(allEvents.value[0])
+   }
+
   } finally {
     loading.value = false
   }

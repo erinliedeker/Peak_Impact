@@ -1,34 +1,38 @@
 <template>
-  <div class="event-card">
+  <div v-if="item != null" class="event-card">
     <div class="organizer-info">
       <img class="organizer-avatar" 
-      :src="item.organizer.avatar || defaultAvatar" 
-      :alt="`Avatar for ${item.organizer.name}`"  
+      src='~/assets/images/avatar-placeholder.png'
+      :alt="`Avatar for ${item.organizationName}`"  
       />
-      <a class="organizer-name" href="">{{ item.organizer.name }}</a>
+      <a v-if="item.isExternal" class="organizer-name" :href=item.externalUrl>{{ item.organizationName}}</a>
+      <span v-else class="organizer-name">{{ item.organizationName}}</span>
     </div>
     <header class="event-header">
-      <h1>{{ item.name }}</h1>
+      <h1>{{ item.title }}</h1>
     </header>
     <div class="action-buttons">
-      <button class="btn primary">RSVP</button>
+      <button class="btn primary">Sign Up</button>
       <button class="btn secondary">Share</button>
     </div>
     <div class="details">
       <h2>Event Details</h2>
       <p><strong>Date:</strong> {{ new Date(item.date).toLocaleDateString() }}</p>
-      <p><strong>Location:</strong> {{ item.location }}</p>
+      <!--p><strong>Location:</strong> {{ item.location }}</p!-->
       <p><strong>Category:</strong> {{ item.category }}</p>
-      <p><strong>Status:</strong> {{ item.status }}</p>
+      <p><strong>Volunteers:</strong> {{ item.volunteersSignedUp }} / {{ item.volunteersNeeded }}</p>
       <h2>Description</h2>
       <p v-if="item.description">{{ item.description }}</p>
       <p v-else>No description available.</p>
     </div>
     <div class="organizer-details">
-      <h2>About {{ item.organizer.name }}</h2>
-      <p v-if="item.organizer.description">{{ item.organizer.description }}</p>
-      <p v-else>No organizer description available.</p>
+      <h2>About {{ item.organizationName}}</h2>
+      <p v-if="item.organizationDescription">{{ item.organizationDescription }}</p>
+      <p v-else>No organization description available.</p>
     </div>
+  </div>
+  <div v-else class="event-card">
+    <p>No event selected.</p>
   </div>
 </template>
 

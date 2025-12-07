@@ -46,11 +46,11 @@
                 <span>Impact Score</span>
               </div>
               <div class="stat">
-                <strong>{{ viewedUser.followerCount || 0 }}</strong>
+                <strong>{{ followerCount }}</strong>
                 <span>Followers</span>
               </div>
               <div class="stat">
-                <strong>{{ viewedUser.followingCount || 0 }}</strong>
+                <strong>{{ followingCount }}</strong>
                 <span>Following</span>
               </div>
             </div>
@@ -58,15 +58,16 @@
 
           <div class="action-section">
             <button 
-              @click="toggleFollow" 
+              @click="handleFollowAction" 
               class="btn icon-btn"
-              :class="isFollowing ? 'btn-secondary' : 'btn-primary'"
+              :class="{
+                'btn-primary': !isFollowing,
+                'btn-secondary': isFollowing
+              }"
+              :disabled="isActionLoading"
             >
-              <Icon :name="isFollowing ? 'heroicons:check' : 'heroicons:user-plus'" />
-              {{ isFollowing ? 'Following' : 'Follow' }}
-            </button>
-            <button class="btn btn-outline icon-btn">
-              <Icon name="heroicons:chat-bubble-left-ellipsis" /> Message
+              <Icon :name="getFollowButtonIcon()" />
+              {{ getFollowButtonText() }}
             </button>
           </div>
         </div>
@@ -83,7 +84,10 @@
             </h3>
             
             <div class="list-container">
-              <article v-for="event in mockHistory" :key="event.id" class="list-item">
+              <div v-if="eventHistory.length === 0" class="empty-state">
+                <p>No volunteering history yet</p>
+              </div>
+              <article v-for="event in eventHistory" :key="event.id" class="list-item">
                 <div class="date-box">
                   <span class="month">{{ formatDate(event.date).month }}</span>
                   <span class="day">{{ formatDate(event.date).day }}</span>
@@ -111,14 +115,22 @@
               <Icon name="heroicons:building-library" class="text-muted" /> 
               Member Organizations
             </h3>
-            <div class="org-chips">
+            <div v-if="userOrgs.length === 0" class="empty-state">
+              <p>Not a member of any organizations yet</p>
+            </div>
+            <div v-else class="org-chips">
               <NuxtLink 
-                v-for="org in mockOrgs" 
+                v-for="org in userOrgs" 
                 :key="org.id" 
                 :to="`/organizations/${org.id}`" 
                 class="org-chip"
               >
-                <img :src="org.logo" class="org-logo-sm" />
+                <div v-if="org.logo" class="org-logo-sm">
+                  <img :src="org.logo" />
+                </div>
+                <div v-else class="org-logo-sm org-initials">
+                  {{ org.name.substring(0, 2).toUpperCase() }}
+                </div>
                 {{ org.name }}
               </NuxtLink>
             </div>
@@ -130,19 +142,29 @@
           <div v-if="!isFollowing" class="locked-feed profile-card">
             <Icon name="heroicons:lock-closed" size="40" class="lock-icon" />
             <h4>Follow {{ viewedUser.name }} to see their posts</h4>
-            <p>Connect with volunteers to see their updates, photos, and shared impact stories.</p>
-            <button @click="toggleFollow" class="btn btn-sm btn-primary">Follow Now</button>
+            <p>Follow to see their updates, photos, and shared impact stories.</p>
+            <button 
+              @click="handleFollowAction" 
+              class="btn btn-sm btn-primary"
+              :disabled="isActionLoading"
+            >
+              {{ getFollowButtonText() }}
+            </button>
           </div>
 
           <div v-else>
             <h3 class="feed-title">Recent Activity Feed</h3>
             
-            <div v-for="post in mockPosts" :key="post.id" class="profile-card post-card">
+            <div v-if="userPosts.length === 0" class="profile-card empty-state">
+              <p>No posts yet</p>
+            </div>
+            
+            <div v-for="post in userPosts" :key="post.id" class="profile-card post-card">
               <div class="post-header">
                 <img :src="viewedUser.avatarUrl || 'https://api.dicebear.com/7.x/initials/svg?seed=' + viewedUser.name" class="avatar-xs" />
                 <div>
                   <strong>{{ viewedUser.name }}</strong>
-                  <span class="text-muted"> • {{ post.timeAgo }}</span>
+                  <span class="text-muted"> • {{ formatActivityTime(post.createdAt) }}</span>
                 </div>
               </div>
               
@@ -173,69 +195,76 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { getFirestore, doc, getDoc } from 'firebase/firestore';
+import { getFirestore, doc, getDoc, getDocs, collection, query, where } from 'firebase/firestore';
 import { useAuthStore } from '~~/stores/auth';
-import type { UserProfile } from '~~/types/user'; // Your provided interface
+import { useFriendRequests } from '~~/composables/useFriendRequests';
+import type { UserProfile } from '~~/types/user';
 
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+const friendRequests = useFriendRequests();
 const userId = route.params.id as string;
 
 // --- 1. Extended Type Definition ---
-// We extend your base UserProfile to include fields needed for the UI
-// In the future, you should add these fields to your Firestore 'users' collection
 interface ExtendedUserProfile extends UserProfile {
   avatarUrl?: string;
   badges?: string[];
-  followerCount?: number;
-  followingCount?: number;
 }
 
 // --- 2. State ---
 const viewedUser = ref<ExtendedUserProfile | null>(null);
 const isLoading = ref(true);
 const error = ref<string | null>(null);
-const isFollowing = ref(false); // Tracks if the logged-in user follows this profile
+const isFollowing = ref(false);
+const followerCount = ref(0);
+const followingCount = ref(0);
+const isActionLoading = ref(false);
 
-// --- 3. Mock Data (To replace with DB subcollections later) ---
-const mockHistory = ref([
-  { id: '101', title: 'Community Garden Build', orgId: 'org1', orgName: 'Green Earth', date: '2023-11-02', hours: 4 },
-  { id: '102', title: 'Food Drive Sort', orgId: 'org2', orgName: 'City Pantry', date: '2023-10-20', hours: 2 },
-]);
+// --- 3. Data from Firebase ---
+interface EventHistory {
+  id: string;
+  title: string;
+  orgId: string;
+  orgName: string;
+  date: any;
+  hours: number;
+}
 
-const mockOrgs = ref([
-  { id: 'org1', name: 'Green Earth', logo: 'https://via.placeholder.com/30/22c55e/ffffff?text=G' },
-  { id: 'org2', name: 'City Pantry', logo: 'https://via.placeholder.com/30/3b82f6/ffffff?text=C' },
-]);
+interface UserOrg {
+  id: string;
+  name: string;
+  logo?: string;
+  type?: string;
+}
 
-const mockPosts = ref([
-  { 
-    id: 'p1', 
-    content: 'Just finished 4 hours at the community garden! The new beds look amazing. 🌱 #volunteer #cos', 
-    image: 'https://via.placeholder.com/600x300/e2e8f0/64748b?text=Garden+Photo',
-    timeAgo: '2h ago',
-    likes: 12
-  },
-  { 
-    id: 'p2', 
-    content: 'Big thanks to City Pantry for organizing the food drive today. So many families helped.', 
-    image: null,
-    timeAgo: '1d ago',
-    likes: 8
-  }
-]);
+interface UserPost {
+  id: string;
+  content: string;
+  image?: string;
+  createdAt: any;
+  likes: number;
+}
+
+const eventHistory = ref<EventHistory[]>([]);
+const userOrgs = ref<UserOrg[]>([]);
+const userPosts = ref<UserPost[]>([]);
 
 // --- 4. Actions ---
 
 onMounted(async () => {
   if (authStore.profile?.id === userId) {
-    // Optional: Redirect to "My Profile" if viewing self
     router.replace('/profile');
     return;
   }
   await fetchUserProfile();
-  // checkFollowStatus(); // TODO: Implement API check
+  await Promise.all([
+    checkFollowStatus(), 
+    fetchFollowerCounts(),
+    fetchEventHistory(),
+    fetchUserOrgs(),
+    fetchUserPosts()
+  ]);
 });
 
 async function fetchUserProfile() {
@@ -258,25 +287,160 @@ async function fetchUserProfile() {
   }
 }
 
-function toggleFollow() {
-  // TODO: Call API to add/remove from 'relationships' collection
-  isFollowing.value = !isFollowing.value;
+async function checkFollowStatus() {
+  if (!authStore.profile?.id) return;
   
-  if (isFollowing.value) {
-    // Optimistic UI update
-    if (viewedUser.value) {
-        viewedUser.value.followerCount = (viewedUser.value.followerCount || 0) + 1;
-    }
-  } else {
-    if (viewedUser.value) {
-        viewedUser.value.followerCount = (viewedUser.value.followerCount || 1) - 1;
-    }
+  isFollowing.value = await friendRequests.isFollowing(userId);
+}
+
+async function fetchFollowerCounts() {
+  try {
+    const followers = await friendRequests.getFollowers(userId);
+    followerCount.value = followers.length;
+    
+    const following = await friendRequests.getFollowing(userId);
+    followingCount.value = following.length;
+  } catch (e) {
+    console.error('Failed to load follower counts', e);
   }
 }
 
+function getFollowButtonText(): string {
+  return isFollowing.value ? 'Following' : 'Follow';
+}
+
+function getFollowButtonIcon(): string {
+  return isFollowing.value ? 'heroicons:check' : 'heroicons:user-plus';
+}
+
+async function handleFollowAction() {
+  if (!authStore.profile?.id) {
+    alert('Please log in to follow people.');
+    return;
+  }
+
+  isActionLoading.value = true;
+
+  try {
+    if (isFollowing.value) {
+      await friendRequests.unfollowUser(userId);
+      isFollowing.value = false;
+    } else {
+      await friendRequests.followUser(userId);
+      isFollowing.value = true;
+    }
+    // Refresh counts from database
+    await fetchFollowerCounts();
+  } catch (e: any) {
+    console.error('Follow action failed', e);
+    alert(e.message || 'Action failed');
+  } finally {
+    isActionLoading.value = false;
+  }
+}
+
+async function fetchEventHistory() {
+  try {
+    const db = getFirestore();
+    const historyQuery = query(
+      collection(db, 'eventParticipants'),
+      where('userId', '==', userId),
+      where('status', '==', 'completed')
+    );
+    const historySnap = await getDocs(historyQuery);
+    
+    const history: EventHistory[] = [];
+    for (const docSnap of historySnap.docs) {
+      const data = docSnap.data();
+      const eventDoc = await getDoc(doc(db, 'events', data.eventId));
+      const orgDoc = eventDoc.exists() && eventDoc.data().organizationId 
+        ? await getDoc(doc(db, 'organizations', eventDoc.data().organizationId))
+        : null;
+      
+      if (eventDoc.exists()) {
+        history.push({
+          id: docSnap.id,
+          title: eventDoc.data().title,
+          orgId: eventDoc.data().organizationId || '',
+          orgName: orgDoc?.exists() ? orgDoc.data().name : 'Organization',
+          date: data.completedAt || data.createdAt,
+          hours: data.hours || 0
+        });
+      }
+    }
+    eventHistory.value = history;
+  } catch (e) {
+    console.error('Failed to load event history', e);
+  }
+}
+
+async function fetchUserOrgs() {
+  try {
+    const db = getFirestore();
+    const orgsQuery = query(
+      collection(db, 'organizationMembers'),
+      where('userId', '==', userId)
+    );
+    const orgsSnap = await getDocs(orgsQuery);
+    
+    const orgs: UserOrg[] = [];
+    for (const docSnap of orgsSnap.docs) {
+      const data = docSnap.data();
+      const orgDoc = await getDoc(doc(db, 'organizations', data.organizationId));
+      if (orgDoc.exists()) {
+        orgs.push({
+          id: orgDoc.id,
+          name: orgDoc.data().name,
+          logo: orgDoc.data().logo,
+          type: orgDoc.data().type
+        });
+      }
+    }
+    userOrgs.value = orgs;
+  } catch (e) {
+    console.error('Failed to load user organizations', e);
+  }
+}
+
+async function fetchUserPosts() {
+  try {
+    const db = getFirestore();
+    const postsQuery = query(
+      collection(db, 'posts'),
+      where('userId', '==', userId)
+    );
+    const postsSnap = await getDocs(postsQuery);
+    
+    userPosts.value = postsSnap.docs.map(docSnap => ({
+      id: docSnap.id,
+      content: docSnap.data().content,
+      image: docSnap.data().image,
+      createdAt: docSnap.data().createdAt,
+      likes: docSnap.data().likes || 0
+    })).sort((a, b) => b.createdAt?.toMillis() - a.createdAt?.toMillis());
+  } catch (e) {
+    console.error('Failed to load user posts', e);
+  }
+}
+
+function formatActivityTime(createdAt: any): string {
+  if (!createdAt || !createdAt.toDate) return 'recently';
+  const date = createdAt.toDate();
+  const now = new Date();
+  const diff = now.getTime() - date.getTime();
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  
+  if (hours < 1) return 'just now';
+  if (hours < 24) return `${hours}h ago`;
+  if (days === 1) return '1d ago';
+  return `${days}d ago`;
+}
+
 // --- Helpers ---
-function formatDate(dateString: string) {
-  const d = new Date(dateString);
+function formatDate(dateObj: any) {
+  if (!dateObj || !dateObj.toDate) return { month: '', day: '' };
+  const d = dateObj.toDate();
   return {
     month: d.toLocaleString('default', { month: 'short' }).toUpperCase(),
     day: d.getDate()
@@ -428,8 +592,20 @@ h3 { font-size: 1.1rem; margin: 0 0 15px; padding: 15px 20px 0; display: flex; a
 .btn-primary { background: var(--color-primary); color: white; }
 .btn-primary:hover { background: var(--color-primary-dark); }
 .btn-secondary { background: var(--color-bg-light); color: var(--color-text-main); border: 1px solid var(--color-border); }
+.btn-secondary:hover { background: #e2e8f0; }
+.btn-pending {
+  background: #fff7ed;
+  border: 1px solid #fb923c;
+  color: #ea580c;
+}
+.btn-respond {
+  background: #eff6ff;
+  border: 1px solid var(--color-primary);
+  color: var(--color-primary);
+}
 .btn-outline { background: transparent; border: 1px solid var(--color-border); color: var(--color-text-main); }
 .btn-sm { padding: 0.4rem 0.8rem; font-size: 0.85rem; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 @keyframes spin { 100% { transform: rotate(360deg); } }
 </style>

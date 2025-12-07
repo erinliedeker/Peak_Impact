@@ -1,131 +1,70 @@
 <template>
   <div class="network-container">
-    
+
     <div class="main-feed">
-      
       <div class="feed-header">
         <h1>Network</h1>
-        
         <div class="tabs">
-          <button 
-            :class="{ active: activeTab === 'friends' }" 
-            @click="activeTab = 'friends'">
-            Friends
-          </button>
-          <button 
-            :class="{ active: activeTab === 'groups' }" 
-            @click="activeTab = 'groups'">
-            Neighborhoods & Groups
-          </button>
+          <button :class="{ active: activeTab === 'friends' }" @click="activeTab = 'friends'">People</button>
+          <button :class="{ active: activeTab === 'groups' }" @click="activeTab = 'groups'">Neighborhoods & Groups</button>
         </div>
-
         <div class="search-box">
           <Icon name="heroicons:magnifying-glass" size="1.2rem" class="text-gray-400" />
-          <input 
-            type="text" 
-            :placeholder="activeTab === 'friends' ? 'Search your friends...' : 'Find a neighborhood or group...'" 
-            v-model="searchQuery" 
+          <input
+            type="text"
+            :placeholder="activeTab === 'friends' ? 'Search people...' : 'Find a neighborhood or group...'"
+            v-model="searchQuery"
           />
         </div>
       </div>
 
       <div v-if="activeTab === 'friends'" class="content-view">
-        
-        <div class="section-container" v-if="requests.length">
-          <div class="section-header">
-            <h3>Friend Requests <span class="counter-badge">{{ requests.length }}</span></h3>
-          </div>
-          
-          <div class="requests-list">
-            <div v-for="req in requests" :key="req.id" class="request-card">
-              <div class="req-left">
-                <div class="avatar-md">{{ req.initials }}</div>
-                <div class="req-info">
-                  <span class="req-name">{{ req.name }}</span>
-                  <div class="req-meta">
-                    <span>{{ req.mutual }} mutual friends</span> • 
-                    <span class="impact-score">
-                      <Icon name="heroicons:bolt-solid" size="0.9rem" /> {{ req.impact }} Impact
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <div class="req-actions">
-                <button class="btn-icon check" title="Accept"><Icon name="heroicons:check" size="1.2rem" /></button>
-                <button class="btn-icon close" title="Ignore"><Icon name="heroicons:x-mark" size="1.2rem" /></button>
-              </div>
-            </div>
-          </div>
+
+        <div v-if="isLoading" class="section-container">
+          <p>Loading people...</p>
         </div>
 
-        <div class="section-container" v-if="socialEvents.length">
-          <div class="section-header">
-            <h3>
-              <Icon name="heroicons:calendar-days-solid" size="1.2rem" class="header-icon" /> 
-              Friends are going to...
-            </h3>
-          </div>
-
-          <div class="event-list">
-            <NuxtLink 
-              v-for="event in socialEvents" 
-              :key="event.id" 
-              :to="`/events/${event.id}`" 
-              class="social-event-card"
-            >
-              <div class="date-badge">
-                <span class="month">{{ event.month }}</span>
-                <span class="day">{{ event.day }}</span>
-              </div>
-              
-              <div class="event-details">
-                <h4>{{ event.title }}</h4>
-                <div class="attendee-row">
-                  <div class="facepile">
-                    <div 
-                      v-for="(f, i) in event.friendsGoing" 
-                      :key="i" 
-                      class="tiny-avatar" 
-                      :style="{ zIndex: 10 - i }"
-                    >
-                      {{ f }}
-                    </div>
-                  </div>
-                  <span class="plus-text">+{{ event.totalGoing - event.friendsGoing.length }} others</span>
-                </div>
-              </div>
-
-              <div class="card-arrow">
-                <Icon name="heroicons:chevron-right" size="1.2rem" />
-              </div>
-            </NuxtLink>
-          </div>
+        <div v-if="!isLoading && filteredFriends.length === 0" class="section-container">
+          <p>No people found.</p>
         </div>
 
         <div class="friends-grid">
-          <div v-for="friend in filteredFriends" :key="friend.id" class="friend-card">
+          <div v-for="person in filteredFriends" :key="person.id" class="friend-card">
             <div class="card-header-bg"></div>
             <div class="card-content">
-              <div class="avatar-lg">{{ friend.initials }}</div>
-              <h3>{{ friend.name }}</h3>
-              
-              <div class="streak-pill" v-if="friend.streak > 0">
-                <Icon name="heroicons:fire-solid" size="0.9rem" /> {{ friend.streak }} Week Streak
-              </div>
-              
-              <div class="badge-row">
-                <Icon 
-                  v-for="badge in friend.badges" 
-                  :key="badge" 
-                  name="heroicons:trophy-solid" 
-                  class="mini-badge-icon" 
-                  :title="badge" 
-                />
+              <div class="avatar-lg">{{ person.initials }}</div>
+              <h3>{{ person.name }}</h3>
+
+              <div class="streak-pill" v-if="person.userType">
+                <Icon name="heroicons:user" size="0.9rem" /> {{ person.userType }}
               </div>
 
-              <NuxtLink :to="`/volunteers/${friend.id}`" class="btn-profile">
-                View Profile
-              </NuxtLink>
+              <div class="badge-row">
+                <span class="impact-score">Impact {{ person.impactPoints }}</span>
+                <span v-if="person.mutualFriends && person.mutualFriends > 0" class="mutual-badge">
+                  <Icon name="heroicons:users" size="0.8rem" /> {{ person.mutualFriends }} mutual
+                </span>
+              </div>
+
+              <div class="btn-row">
+                <button
+                  class="btn-profile"
+                  :class="{
+                    'btn-following': friendStatusMap[person.id] === 'following'
+                  }"
+                  @click="handleFollowAction(person.id)"
+                  :disabled="isActionLoading[person.id]"
+                >
+                  <Icon 
+                    :name="getFollowButtonIcon(person.id)" 
+                    size="0.9rem" 
+                  />
+                  {{ getFollowButtonText(person.id) }}
+                </button>
+                <NuxtLink :to="`/volunteers/${person.id}`" class="btn-profile">
+                  View Profile
+                </NuxtLink>
+              </div>
             </div>
           </div>
         </div>
@@ -133,9 +72,9 @@
 
       <div v-if="activeTab === 'groups'" class="content-view">
         <div class="groups-grid">
-          <NuxtLink 
-            v-for="group in filteredGroups" 
-            :key="group.id" 
+          <NuxtLink
+            v-for="group in filteredGroups"
+            :key="group.id"
             :to="`/groups/${group.id}`"
             class="group-card"
           >
@@ -153,26 +92,24 @@
 
     </div>
 
-
     <aside class="side-widgets">
-      
       <div class="widget">
-				<div class="widget-header">
-					<h3>
-						<Icon name="heroicons:sparkles-solid" size="1.1rem" class="text-orange" /> 
-						Recent Activity
-					</h3>
-				</div>
+        <div class="widget-header">
+          <h3>
+            <Icon name="heroicons:sparkles-solid" size="1.1rem" class="text-orange" />
+            Recent Activity
+          </h3>
+        </div>
         <div class="activity-list">
           <div v-for="act in activities" :key="act.id" class="activity-item">
             <div class="avatar-xs">{{ act.initials }}</div>
             <div class="act-content">
               <p>
-                <span class="name">{{ act.name }}</span> 
-                {{ act.action }} 
+                <span class="name">{{ act.name }}</span>
+                {{ act.action }}
                 <NuxtLink :to="act.link" class="act-link">{{ act.target }}</NuxtLink>
               </p>
-              <span class="time">{{ act.time }}</span>
+              <span class="time">{{ formatActivityTime(act.createdAt) }}</span>
             </div>
           </div>
         </div>
@@ -184,84 +121,326 @@
             <Icon name="heroicons:chart-bar-solid" size="1.1rem" class="text-orange" />
             Your Circle
           </h3>
-          <span class="label">Weekly</span>
+          <span class="label">Impact</span>
         </div>
         <div class="leader-list">
-          <div v-for="(friend, index) in sortedFriends" :key="friend.id" class="leader-row">
+          <div v-for="(person, index) in sortedFriends" :key="person.id" class="leader-row">
             <span class="rank" :class="{ 'top-rank': index < 3 }">
               <Icon v-if="index === 0" name="heroicons:trophy-solid" size="1rem" class="text-orange" />
               <span v-else>{{ index + 1 }}</span>
             </span>
-            <div class="avatar-xs">{{ friend.initials }}</div>
-            <div class="leader-name">{{ friend.name }}</div>
-            <div class="leader-pts">{{ friend.points }}</div>
+            <div class="avatar-xs">{{ person.initials }}</div>
+            <div class="leader-name">{{ person.name }}</div>
+            <div class="leader-pts">{{ person.impactPoints }}</div>
           </div>
         </div>
       </div>
 
       <div class="widget invite-widget">
-				<div class="widget-header">
-					<h3>
-						<Icon name="heroicons:envelope-solid" size="1.1rem" class="text-orange" /> 
-						Invite Friends
-					</h3>
-				</div>
+        <div class="widget-header">
+          <h3>
+            <Icon name="heroicons:envelope-solid" size="1.1rem" class="text-orange" />
+            Invite Friends
+          </h3>
+        </div>
         <p>Grow your impact circle.</p>
         <div class="invite-form">
           <input type="email" placeholder="name@email.com" />
           <button><Icon name="heroicons:paper-airplane-solid" size="1rem" /></button>
         </div>
       </div>
-
     </aside>
 
   </div>
 </template>
 
-<script setup>
-const activeTab = ref('friends');
-const searchQuery = ref('');
+<script setup lang="ts">
+import { ref, computed, onMounted, watch, type Ref } from 'vue';
+import { getFirestore, collection, getDocs, getDoc, doc, query, where, type DocumentData } from 'firebase/firestore';
+import { useCollection } from 'vuefire';
+import { useAuthStore } from '~~/stores/auth';
+import { useFriendRequests } from '~~/composables/useFriendRequests';
 
-// --- Mock Data ---
+const activeTab: Ref<string> = ref('friends');
+const searchQuery: Ref<string> = ref('');
+const isLoading: Ref<boolean> = ref(false);
 
-const requests = ref([
-  { id: 99, name: 'Alex Chen', initials: 'AC', mutual: 4, impact: 850 }
-]);
+const authStore = useAuthStore();
+const friendRequests = useFriendRequests();
 
-const friends = ref([
-  { id: 1, name: 'Sarah Jenkins', initials: 'SJ', streak: 12, points: 1250, badges: ['Cleaner'] },
-  { id: 2, name: 'Mike Ross', initials: 'MR', streak: 0, points: 450, badges: [] },
-  { id: 3, name: 'Jessica Pearson', initials: 'JP', streak: 45, points: 3400, badges: ['Legend', 'Sponsor'] },
-]);
+interface PersonInfo {
+  id: string;
+  name: string;
+  initials: string;
+  impactPoints: number;
+  userType?: string;
+  mutualFriends?: number;
+}
 
-const groups = ref([
-  { id: 101, name: 'Downtown District', initials: 'DD', memberCount: 342, activeEvents: 3, color: '#3b82f6' },
-  { id: 102, name: 'Westside Gardeners', initials: 'WG', memberCount: 120, activeEvents: 1, color: '#10b981' },
-]);
+// Users fetched from Firestore
+const people: Ref<PersonInfo[]> = ref<PersonInfo[]>([]);
 
-const activities = ref([
-  { id: 1, name: 'Sarah', initials: 'SJ', action: 'joined', target: 'Downtown District', link: '/groups/101', time: '2h ago' },
-  { id: 2, name: 'Mike', initials: 'MR', action: 'is going to', target: 'River Cleanup', link: '/events/202', time: '5h ago' },
-  { id: 3, name: 'Jessica', initials: 'JP', action: 'earned', target: 'Super Star Badge', link: '/volunteers/3', time: '1d ago' },
-]);
+// Map of userId -> friend status
+type FollowStatus = 'following' | 'not_following';
+const friendStatusMap: Ref<Record<string, FollowStatus>> = ref<Record<string, FollowStatus>>({});
 
-const socialEvents = ref([
-  { 
-    id: 101, 
-    title: 'Saturday Creek Cleanup', 
-    month: 'OCT', 
-    day: '12', 
-    friendsGoing: ['SJ', 'MR', 'JP'], 
-    totalGoing: 45 
-  }
-]);
+// Track loading state per user
+const isActionLoading: Ref<Record<string, boolean>> = ref<Record<string, boolean>>({});
 
-// --- Computed ---
-const filteredFriends = computed(() => friends.value.filter(f => f.name.toLowerCase().includes(searchQuery.value.toLowerCase())));
+// Received friend requests with user details
+interface ReceivedRequest {
+  requestId: string;
+  userId: string;
+  name: string;
+  initials: string;
+  impactPoints: number;
+  mutualFriends: number;
+}
+
+const receivedRequests: Ref<ReceivedRequest[]> = ref<ReceivedRequest[]>([]);
+
+// Groups and activities - loaded from Firebase
+interface Group {
+  id: string;
+  name: string;
+  initials: string;
+  memberCount: number;
+  activeEvents: number;
+  color: string;
+}
+
+interface Activity {
+  id: string;
+  userId: string;
+  name: string;
+  initials: string;
+  action: string;
+  target: string;
+  link: string;
+  createdAt: any;
+}
+
+const groups: Ref<Group[]> = ref<Group[]>([]);
+const activities: Ref<Activity[]> = ref<Activity[]>([]);
+
+// VueFire realtime binding for friend requests
+const receivedRequestsQuery = computed(() => friendRequests.getReceivedRequestsQuery());
+const receivedRequestsDocs = useCollection(receivedRequestsQuery);
+
+onMounted(async () => {
+  await Promise.all([
+    loadPeople(),
+    loadReceivedRequests(),
+    loadGroups(),
+    loadActivities()
+  ]);
+  await loadFollowStatuses();
+});
+
+// Watch for changes in received requests
+watch(receivedRequestsDocs, async () => {
+  await loadReceivedRequests();
+});
+
+const filteredFriends = computed(() => {
+  const q = searchQuery.value.toLowerCase();
+  return people.value.filter(p => p.name.toLowerCase().includes(q));
+});
+
 const filteredGroups = computed(() => groups.value.filter(g => g.name.toLowerCase().includes(searchQuery.value.toLowerCase())));
-const sortedFriends = computed(() => [...friends.value].sort((a, b) => b.points - a.points));
-</script>
 
+const sortedFriends = computed(() => {
+  // Sort following first, then by impact points
+  return [...people.value].sort((a, b) => {
+    const aIsFollowing = friendStatusMap.value[a.id] === 'following' ? 1 : 0;
+    const bIsFollowing = friendStatusMap.value[b.id] === 'following' ? 1 : 0;
+    if (aIsFollowing !== bIsFollowing) return bIsFollowing - aIsFollowing;
+    return (b.impactPoints || 0) - (a.impactPoints || 0);
+  });
+});
+
+function initialsFor(name: string): string {
+  return name
+    .split(' ')
+    .map(n => n[0] || '')
+    .join('')
+    .toUpperCase();
+}
+
+async function loadPeople(): Promise<void> {
+  isLoading.value = true;
+  try {
+    const db = getFirestore();
+    const snap = await getDocs(collection(db, 'users'));
+    const currentId = authStore.profile?.id;
+    const list: PersonInfo[] = [];
+    
+    for (const d of snap.docs) {
+      const data = d.data();
+      if (currentId && d.id === currentId) {
+        continue; // exclude self
+      }
+      
+      // Get mutual friends count
+      const mutualCount = await friendRequests.getMutualFollowsCount(d.id);
+      
+      list.push({
+        id: d.id,
+        name: data.name || 'User',
+        impactPoints: data.impactPoints || 0,
+        userType: data.userType,
+        mutualFriends: mutualCount,
+        initials: initialsFor(data.name || 'U')
+      });
+    }
+    
+    people.value = list;
+  } catch (e) {
+    console.error('Load users failed', e);
+  }
+  isLoading.value = false;
+}
+
+async function loadFollowStatuses(): Promise<void> {
+  const statusMap: Record<string, FollowStatus> = {};
+  for (const person of people.value) {
+    const following = await friendRequests.isFollowing(person.id);
+    statusMap[person.id] = following ? 'following' : 'not_following';
+  }
+  friendStatusMap.value = statusMap;
+}
+
+async function loadReceivedRequests(): Promise<void> {
+  if (!receivedRequestsDocs.value || receivedRequestsDocs.value.length === 0) return;
+  
+  const requests: ReceivedRequest[] = [];
+  const db = getFirestore();
+  
+  for (const reqDoc of receivedRequestsDocs.value) {
+    const reqData = reqDoc as DocumentData;
+    const userDoc = await getDoc(doc(db, 'users', reqData.from));
+    
+    if (userDoc.exists()) {
+      const userData = userDoc.data();
+      const mutualCount = await friendRequests.getMutualFollowsCount(reqData.from);
+      
+      requests.push({
+        requestId: reqDoc.id,
+        userId: reqData.from,
+        name: userData.name || 'User',
+        initials: initialsFor(userData.name || 'U'),
+        impactPoints: userData.impactPoints || 0,
+        mutualFriends: mutualCount
+      });
+    }
+  }
+  
+  receivedRequests.value = requests;
+}
+
+function getFollowButtonText(userId: string): string {
+  const status = friendStatusMap.value[userId];
+  return status === 'following' ? 'Following' : 'Follow';
+}
+
+function getFollowButtonIcon(userId: string): string {
+  const status = friendStatusMap.value[userId];
+  return status === 'following' ? 'heroicons:check' : 'heroicons:user-plus';
+}
+
+async function handleFollowAction(userId: string): Promise<void> {
+  if (!authStore.profile?.id) {
+    alert('Please log in to connect with people.');
+    return;
+  }
+
+  const isCurrentlyFollowing: boolean = friendStatusMap.value[userId] === 'following';
+  isActionLoading.value = { ...isActionLoading.value, [userId]: true };
+
+  try {
+    if (isCurrentlyFollowing) {
+      // Unfollow
+      await friendRequests.unfollowUser(userId);
+      friendStatusMap.value = { ...friendStatusMap.value, [userId]: 'not_following' };
+    } else {
+      // Follow
+      await friendRequests.followUser(userId);
+      friendStatusMap.value = { ...friendStatusMap.value, [userId]: 'following' };
+    }
+  } catch (e: unknown) {
+    console.error('Follow action failed', e);
+    const errorMessage = e instanceof Error ? e.message : 'Action failed';
+    alert(errorMessage);
+  } finally {
+    isActionLoading.value = { ...isActionLoading.value, [userId]: false };
+  }
+}
+
+// Note: Friend requests functionality removed - using pure Instagram-style follow model
+
+async function loadGroups(): Promise<void> {
+  try {
+    const db = getFirestore();
+    const groupsSnap = await getDocs(collection(db, 'groups'));
+    groups.value = groupsSnap.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      initials: doc.data().name.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2)
+    } as Group));
+  } catch (e) {
+    console.error('Failed to load groups', e);
+  }
+}
+
+async function loadActivities(): Promise<void> {
+  try {
+    const db = getFirestore();
+    const activitiesQuery = query(
+      collection(db, 'activities'),
+      where('createdAt', '>=', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000))
+    );
+    const activitiesSnap = await getDocs(activitiesQuery);
+    
+    const activityList: Activity[] = [];
+    for (const docSnap of activitiesSnap.docs) {
+      const data = docSnap.data() as DocumentData;
+      const userDoc = await getDoc(doc(db, 'users', data.userId as string));
+      const userName = userDoc.exists() ? userDoc.data()?.name : 'User';
+      
+      activityList.push({
+        id: docSnap.id,
+        userId: data.userId as string,
+        name: userName as string,
+        initials: initialsFor(userName as string),
+        action: data.action as string,
+        target: data.target as string,
+        link: data.link as string,
+        createdAt: data.createdAt
+      });
+    }
+    
+    activities.value = activityList.sort((a, b) => 
+      b.createdAt?.toMillis() - a.createdAt?.toMillis()
+    );
+  } catch (e) {
+    console.error('Failed to load activities', e);
+  }
+}
+
+function formatActivityTime(createdAt: any): string {
+  if (!createdAt || !createdAt.toDate) return 'recently';
+  const date = createdAt.toDate();
+  const now = new Date();
+  const diff = now.getTime() - date.getTime();
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  
+  if (hours < 1) return 'just now';
+  if (hours < 24) return `${hours}h ago`;
+  if (days === 1) return '1d ago';
+  return `${days}d ago`;
+}
+</script>
 <style scoped>
 
 /* --- UTILITIES & LAYOUT --- */
@@ -271,7 +450,7 @@ const sortedFriends = computed(() => [...friends.value].sort((a, b) => b.points 
   gap: 2.5rem;
   max-width: 1200px;
   margin: 0 auto;
-  padding-bottom: 4rem;
+  padding: 1rem 1.5rem;
 }
 
 .text-orange { color: var(--color-accent); }
@@ -309,6 +488,7 @@ const sortedFriends = computed(() => [...friends.value].sort((a, b) => b.points 
 .req-name { font-weight: 700; color: var(--color-text-main); display: block; }
 .req-meta { font-size: 0.85rem; color: var(--color-text-sub); display: flex; align-items: center; gap: 0.5rem; }
 .impact-score { color: var(--color-accent); font-weight: 600; display: flex; align-items: center; gap: 4px; }
+.mutual-count { color: var(--color-text-sub); font-weight: 500; display: flex; align-items: center; gap: 4px; }
 .req-actions { display: flex; gap: 0.5rem; }
 .btn-icon { width: 32px; height: 32px; border-radius: 50%; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
 .btn-icon.check { background: #e6fffa; color: #2c7a7b; }
@@ -402,8 +582,47 @@ const sortedFriends = computed(() => [...friends.value].sort((a, b) => b.points 
   color: var(--color-text-main);
   font-weight: 600;
   transition: 0.2s;
+  background: white;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
 }
 .btn-profile:hover { background: var(--color-bg); }
+.btn-profile:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-profile.btn-friends {
+  background: #e6fffa;
+  border-color: #2c7a7b;
+  color: #2c7a7b;
+}
+
+.btn-profile.btn-pending {
+  background: #fff7ed;
+  border-color: #fb923c;
+  color: #ea580c;
+}
+
+.btn-profile.btn-respond {
+  background: #eff6ff;
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.btn-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: auto;
+}
+
+.mutual-badge {
+  font-size: 0.75rem;
+  color: var(--color-text-sub);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
 
 /* --- GROUPS --- */
 .groups-grid { display: grid; gap: 1rem; }
