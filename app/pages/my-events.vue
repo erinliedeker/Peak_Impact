@@ -124,9 +124,9 @@
         </aside>
       </div>
     </div>
-    <div v-else class="placeholder-page">
+    <!-- <div v-else class="placeholder-page">
       <p>Please log in to view your events.</p>
-    </div>
+    </div> -->
   </section>
 </template>
 
