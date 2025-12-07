@@ -6,6 +6,9 @@
     </div>
 
     <div class="tabs">
+      <button :class="{ active: activeTab === 'requests' }" @click="activeTab = 'requests'">
+        Requests <span class="count">{{ pendingRequests.length }}</span>
+      </button>
       <button :class="{ active: activeTab === 'followers' }" @click="activeTab = 'followers'">
         Followers <span class="count">{{ followers.length }}</span>
       </button>
@@ -31,8 +34,12 @@
     <div v-else class="friends-list">
       <div v-if="filteredList.length === 0" class="empty-state">
         <Icon name="heroicons:users" size="3rem" class="empty-icon" />
-        <h3>No {{ activeTab === 'followers' ? 'followers' : 'following' }} yet</h3>
-        <p v-if="activeTab === 'followers'">When people follow you, they'll appear here.</p>
+        <h3 v-if="activeTab === 'requests'">No pending requests</h3>
+        <h3 v-else-if="activeTab === 'followers'">No followers yet</h3>
+        <h3 v-else>Not following anyone yet</h3>
+        
+        <p v-if="activeTab === 'requests'">Follow requests will appear here.</p>
+        <p v-else-if="activeTab === 'followers'">When people follow you, they'll appear here.</p>
         <p v-else>Start following people in your community!</p>
         <NuxtLink to="/network" class="btn-primary">Find People</NuxtLink>
       </div>
@@ -50,7 +57,17 @@
           </div>
         </NuxtLink>
         <div class="friend-actions">
-          <NuxtLink :to="`/volunteers/${person.id}`" class="btn-action btn-view">
+          <template v-if="activeTab === 'requests' && person.requestId">
+            <button @click="acceptRequest(person.requestId)" class="btn-action btn-accept">
+              <Icon name="heroicons:check" size="1rem" />
+              Accept
+            </button>
+            <button @click="rejectRequest(person.requestId)" class="btn-action btn-reject">
+              <Icon name="heroicons:x-mark" size="1rem" />
+              Decline
+            </button>
+          </template>
+          <NuxtLink v-else :to="`/volunteers/${person.id}`" class="btn-action btn-view">
             <Icon name="heroicons:eye" size="1rem" />
             View Profile
           </NuxtLink>
@@ -61,7 +78,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { getFirestore, collection, query, where, getDocs, getDoc, doc } from 'firebase/firestore';
 import { useAuthStore } from '~~/stores/auth';
 import { useFriendRequests } from '~~/composables/useFriendRequests';
@@ -72,15 +89,17 @@ interface Friend {
   initials: string;
   impactPoints: number;
   userType?: string;
+  requestId?: string; // For pending requests
 }
 
 const authStore = useAuthStore();
 const friendRequests = useFriendRequests();
 
-const activeTab = ref<'followers' | 'following'>('followers');
+const activeTab = ref<'requests' | 'followers' | 'following'>('requests');
 const searchQuery = ref('');
 const isLoading = ref(true);
 
+const pendingRequests = ref<Friend[]>([]);
 const followers = ref<Friend[]>([]);
 const following = ref<Friend[]>([]);
 
@@ -88,6 +107,9 @@ const filteredList = computed(() => {
   let list: Friend[] = [];
   
   switch (activeTab.value) {
+    case 'requests':
+      list = pendingRequests.value;
+      break;
     case 'followers':
       list = followers.value;
       break;
@@ -104,6 +126,16 @@ const filteredList = computed(() => {
 
 onMounted(async () => {
   await loadConnections();
+  
+  // Refresh every 5 seconds to show real-time updates
+  const refreshInterval = setInterval(async () => {
+    await loadConnections();
+  }, 5000);
+  
+  // Cleanup interval on unmount
+  onUnmounted(() => {
+    clearInterval(refreshInterval);
+  });
 });
 
 async function loadConnections() {
@@ -111,19 +143,16 @@ async function loadConnections() {
   
   isLoading.value = true;
   try {
-    const db = getFirestore();
     const userId = authStore.profile.id;
 
-    // Get FOLLOWERS (all people who follow you)
-    const followersQuery = query(
-      collection(db, 'follows'),
-      where('followingId', '==', userId)
-    );
-    const followersSnap = await getDocs(followersQuery);
-    
+    // Use the composable functions which already include pending requests
+    const followerIds = await friendRequests.getFollowers(userId);
+    const followingIds = await friendRequests.getFollowing(userId);
+
+    // Load follower details
+    const db = getFirestore();
     const followersList: Friend[] = [];
-    for (const docSnap of followersSnap.docs) {
-      const followerId = docSnap.data().followerId;
+    for (const followerId of followerIds) {
       const userDoc = await getDoc(doc(db, 'users', followerId));
       if (userDoc.exists()) {
         const userData = userDoc.data();
@@ -138,16 +167,9 @@ async function loadConnections() {
     }
     followers.value = followersList;
 
-    // Get FOLLOWING (all people you follow)
-    const followingQuery = query(
-      collection(db, 'follows'),
-      where('followerId', '==', userId)
-    );
-    const followingSnap = await getDocs(followingQuery);
-    
+    // Load following details
     const followingList: Friend[] = [];
-    for (const docSnap of followingSnap.docs) {
-      const followingId = docSnap.data().followingId;
+    for (const followingId of followingIds) {
       const userDoc = await getDoc(doc(db, 'users', followingId));
       if (userDoc.exists()) {
         const userData = userDoc.data();
@@ -162,10 +184,56 @@ async function loadConnections() {
     }
     following.value = followingList;
 
+    // Load pending requests
+    const requestsQuery = query(
+      collection(db, 'friendRequests'),
+      where('to', '==', userId),
+      where('status', '==', 'pending')
+    );
+    const requestsSnap = await getDocs(requestsQuery);
+    
+    const requestsList: Friend[] = [];
+    for (const docSnap of requestsSnap.docs) {
+      const fromUserId = docSnap.data().from;
+      const userDoc = await getDoc(doc(db, 'users', fromUserId));
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        requestsList.push({
+          id: fromUserId,
+          requestId: docSnap.id,
+          name: userData.name || 'User',
+          initials: getInitials(userData.name || 'U'),
+          impactPoints: userData.impactPoints || 0,
+          userType: userData.userType
+        });
+      }
+    }
+    pendingRequests.value = requestsList;
+
   } catch (e) {
     console.error('Failed to load connections', e);
   } finally {
     isLoading.value = false;
+  }
+}
+
+async function acceptRequest(requestId: string) {
+  try {
+    await friendRequests.acceptFollowRequest(requestId);
+    await loadConnections(); // Reload to update counts
+  } catch (e) {
+    console.error('Failed to accept request', e);
+    alert('Failed to accept request');
+  }
+}
+
+async function rejectRequest(requestId: string) {
+  try {
+    await friendRequests.rejectFollowRequest(requestId);
+    await loadConnections(); // Reload to update counts
+  } catch (e) {
+    console.error('Failed to reject request', e);
+    alert('Failed to reject request');
   }
 }
 
@@ -425,6 +493,24 @@ function getInitials(name: string): string {
 
 .btn-view:hover {
   background: #eff6ff;
+}
+
+.btn-accept {
+  color: #22c55e;
+  border-color: #86efac;
+}
+
+.btn-accept:hover:not(:disabled) {
+  background: #f0fdf4;
+}
+
+.btn-reject {
+  color: #ef4444;
+  border-color: #fca5a5;
+}
+
+.btn-reject:hover:not(:disabled) {
+  background: #fef2f2;
 }
 
 @media (max-width: 768px) {

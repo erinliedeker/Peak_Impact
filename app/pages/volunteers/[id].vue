@@ -61,13 +61,21 @@
               @click="handleFollowAction" 
               class="btn icon-btn"
               :class="{
-                'btn-primary': !isFollowing,
-                'btn-secondary': isFollowing
+                'btn-primary': followStatus === 'not_following',
+                'btn-secondary': followStatus === 'following' || followStatus === 'requested'
               }"
               :disabled="isActionLoading"
             >
               <Icon :name="getFollowButtonIcon()" />
               {{ getFollowButtonText() }}
+            </button>
+            <button 
+              @click="fetchFollowerCounts" 
+              class="btn icon-btn btn-secondary"
+              :disabled="isActionLoading"
+              title="Refresh follower/following counts"
+            >
+              <Icon name="heroicons:arrow-path" />
             </button>
           </div>
         </div>
@@ -139,7 +147,7 @@
 
         <div class="right-col">
           
-          <div v-if="!isFollowing" class="locked-feed profile-card">
+          <div v-if="followStatus !== 'following'" class="locked-feed profile-card">
             <Icon name="heroicons:lock-closed" size="40" class="lock-icon" />
             <h4>Follow {{ viewedUser.name }} to see their posts</h4>
             <p>Follow to see their updates, photos, and shared impact stories.</p>
@@ -193,7 +201,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { getFirestore, doc, getDoc, getDocs, collection, query, where } from 'firebase/firestore';
 import { useAuthStore } from '~~/stores/auth';
@@ -216,7 +224,8 @@ interface ExtendedUserProfile extends UserProfile {
 const viewedUser = ref<ExtendedUserProfile | null>(null);
 const isLoading = ref(true);
 const error = ref<string | null>(null);
-const isFollowing = ref(false);
+const followStatus = ref<'following' | 'requested' | 'not_following'>('not_following');
+const pendingRequestId = ref<string | null>(null);
 const followerCount = ref(0);
 const followingCount = ref(0);
 const isActionLoading = ref(false);
@@ -267,6 +276,14 @@ onMounted(async () => {
   ]);
 });
 
+// Watch for route changes - when navigating to a different volunteer profile
+watch(() => route.params.id, async (newId, oldId) => {
+  if (newId !== oldId && newId) {
+    // Route changed - component will reload via key
+    return;
+  }
+}, { immediate: false });
+
 async function fetchUserProfile() {
   isLoading.value = true;
   try {
@@ -290,15 +307,21 @@ async function fetchUserProfile() {
 async function checkFollowStatus() {
   if (!authStore.profile?.id) return;
   
-  isFollowing.value = await friendRequests.isFollowing(userId);
+  followStatus.value = await friendRequests.checkFollowStatus(userId);
+  
+  if (followStatus.value === 'requested') {
+    pendingRequestId.value = await friendRequests.hasRequestPending(userId);
+  }
 }
 
 async function fetchFollowerCounts() {
   try {
     const followers = await friendRequests.getFollowers(userId);
+    console.log(`[${userId}] Followers:`, followers);
     followerCount.value = followers.length;
     
     const following = await friendRequests.getFollowing(userId);
+    console.log(`[${userId}] Following:`, following);
     followingCount.value = following.length;
   } catch (e) {
     console.error('Failed to load follower counts', e);
@@ -306,11 +329,27 @@ async function fetchFollowerCounts() {
 }
 
 function getFollowButtonText(): string {
-  return isFollowing.value ? 'Following' : 'Follow';
+  switch (followStatus.value) {
+    case 'following':
+      return 'Following';
+    case 'requested':
+      return 'Requested';
+    case 'not_following':
+    default:
+      return 'Follow';
+  }
 }
 
 function getFollowButtonIcon(): string {
-  return isFollowing.value ? 'heroicons:check' : 'heroicons:user-plus';
+  switch (followStatus.value) {
+    case 'following':
+      return 'heroicons:check';
+    case 'requested':
+      return 'heroicons:clock';
+    case 'not_following':
+    default:
+      return 'heroicons:user-plus';
+  }
 }
 
 async function handleFollowAction() {
@@ -322,12 +361,22 @@ async function handleFollowAction() {
   isActionLoading.value = true;
 
   try {
-    if (isFollowing.value) {
+    if (followStatus.value === 'following') {
+      // Unfollow
       await friendRequests.unfollowUser(userId);
-      isFollowing.value = false;
+      followStatus.value = 'not_following';
+    } else if (followStatus.value === 'requested') {
+      // Cancel request
+      if (pendingRequestId.value) {
+        await friendRequests.cancelFollowRequest(pendingRequestId.value);
+        followStatus.value = 'not_following';
+        pendingRequestId.value = null;
+      }
     } else {
-      await friendRequests.followUser(userId);
-      isFollowing.value = true;
+      // Send follow request
+      await friendRequests.sendFollowRequest(userId);
+      followStatus.value = 'requested';
+      pendingRequestId.value = await friendRequests.hasRequestPending(userId);
     }
     // Refresh counts from database
     await fetchFollowerCounts();

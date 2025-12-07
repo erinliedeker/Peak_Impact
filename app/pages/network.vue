@@ -181,8 +181,11 @@ interface PersonInfo {
 const people: Ref<PersonInfo[]> = ref<PersonInfo[]>([]);
 
 // Map of userId -> friend status
-type FollowStatus = 'following' | 'not_following';
+type FollowStatus = 'following' | 'requested' | 'not_following';
 const friendStatusMap: Ref<Record<string, FollowStatus>> = ref<Record<string, FollowStatus>>({});
+
+// Map of userId -> pending request ID (if any)
+const pendingRequestIds: Ref<Record<string, string | null>> = ref<Record<string, string | null>>({});
 
 // Track loading state per user
 const isActionLoading: Ref<Record<string, boolean>> = ref<Record<string, boolean>>({});
@@ -303,11 +306,21 @@ async function loadPeople(): Promise<void> {
 
 async function loadFollowStatuses(): Promise<void> {
   const statusMap: Record<string, FollowStatus> = {};
+  const requestMap: Record<string, string | null> = {};
+  
   for (const person of people.value) {
-    const following = await friendRequests.isFollowing(person.id);
-    statusMap[person.id] = following ? 'following' : 'not_following';
+    const status = await friendRequests.checkFollowStatus(person.id);
+    statusMap[person.id] = status;
+    
+    if (status === 'requested') {
+      requestMap[person.id] = await friendRequests.hasRequestPending(person.id);
+    } else {
+      requestMap[person.id] = null;
+    }
   }
+  
   friendStatusMap.value = statusMap;
+  pendingRequestIds.value = requestMap;
 }
 
 async function loadReceivedRequests(): Promise<void> {
@@ -340,12 +353,28 @@ async function loadReceivedRequests(): Promise<void> {
 
 function getFollowButtonText(userId: string): string {
   const status = friendStatusMap.value[userId];
-  return status === 'following' ? 'Following' : 'Follow';
+  switch (status) {
+    case 'following':
+      return 'Following';
+    case 'requested':
+      return 'Requested';
+    case 'not_following':
+    default:
+      return 'Follow';
+  }
 }
 
 function getFollowButtonIcon(userId: string): string {
   const status = friendStatusMap.value[userId];
-  return status === 'following' ? 'heroicons:check' : 'heroicons:user-plus';
+  switch (status) {
+    case 'following':
+      return 'heroicons:check';
+    case 'requested':
+      return 'heroicons:clock';
+    case 'not_following':
+    default:
+      return 'heroicons:user-plus';
+  }
 }
 
 async function handleFollowAction(userId: string): Promise<void> {
@@ -354,18 +383,29 @@ async function handleFollowAction(userId: string): Promise<void> {
     return;
   }
 
-  const isCurrentlyFollowing: boolean = friendStatusMap.value[userId] === 'following';
+  const currentStatus = friendStatusMap.value[userId];
   isActionLoading.value = { ...isActionLoading.value, [userId]: true };
 
   try {
-    if (isCurrentlyFollowing) {
+    if (currentStatus === 'following') {
       // Unfollow
       await friendRequests.unfollowUser(userId);
       friendStatusMap.value = { ...friendStatusMap.value, [userId]: 'not_following' };
+      pendingRequestIds.value = { ...pendingRequestIds.value, [userId]: null };
+    } else if (currentStatus === 'requested') {
+      // Cancel request
+      const requestId = pendingRequestIds.value[userId];
+      if (requestId) {
+        await friendRequests.cancelFollowRequest(requestId);
+        friendStatusMap.value = { ...friendStatusMap.value, [userId]: 'not_following' };
+        pendingRequestIds.value = { ...pendingRequestIds.value, [userId]: null };
+      }
     } else {
-      // Follow
-      await friendRequests.followUser(userId);
-      friendStatusMap.value = { ...friendStatusMap.value, [userId]: 'following' };
+      // Send follow request
+      await friendRequests.sendFollowRequest(userId);
+      friendStatusMap.value = { ...friendStatusMap.value, [userId]: 'requested' };
+      const requestId = await friendRequests.hasRequestPending(userId);
+      pendingRequestIds.value = { ...pendingRequestIds.value, [userId]: requestId };
     }
   } catch (e: unknown) {
     console.error('Follow action failed', e);
