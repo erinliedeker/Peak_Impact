@@ -104,7 +104,6 @@ async function fetchEvents() {
   try {
    allEvents.value = await useEventsStore().fetchEvents()
    displayedEvents.value = allEvents.value.slice()
-   console.log('selected Event', selectedEvent.value)
    if(!selectedEvent.value) {
     openEvent(allEvents.value[0])
    }
