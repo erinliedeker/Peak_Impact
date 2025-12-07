@@ -1,8 +1,9 @@
 // stores/events.ts
 
 import { defineStore } from 'pinia';
-import type { EventsState, ConnectEvent, VolunteerAttendance } from '../types/event';
-import { EventService } from '../services/firestore/events'; // <-- Service is used
+import type { EventsState, ConnectEvent, VolunteerAttendance, Attendee } from '../types/event';
+import { EventService } from '../services/firestore/events';
+import { UserService } from '../services/firestore/users';
 
 export const useEventsStore = defineStore('events', {
     state: (): EventsState => ({
