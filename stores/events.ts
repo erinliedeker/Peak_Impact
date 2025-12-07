@@ -246,7 +246,21 @@ export const useEventsStore = defineStore('events', {
             const event = this.allEvents.find(e => e.id === eventId);
             if (!event) return;
 
-            event.attendees.push(volunteer);
+            // Normalize volunteer payload to ensure reports can aggregate from Firestore
+            const normalized: VolunteerAttendance = {
+                volunteerId: volunteer.volunteerId,
+                status: volunteer.status || 'registered',
+                checkInTime: volunteer.checkInTime || null,
+                checkOutTime: volunteer.checkOutTime || null,
+                hoursVerified: !!volunteer.hoursVerified,
+                verificationLetterSent: !!volunteer.verificationLetterSent,
+            };
+
+            // Prevent duplicate signup for same volunteer
+            const already = event.attendees.some(a => a.volunteerId === normalized.volunteerId);
+            if (already) return;
+
+            event.attendees.push(normalized);
             event.volunteersSignedUp = (event.volunteersSignedUp || 0) + 1;
 
             try {
