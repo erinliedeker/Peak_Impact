@@ -152,7 +152,39 @@ const weekDays = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
 const selectedEvent = ref(null)
 
 async function generatePdf() {
-  
+  if (!auth.profile) return;
+
+  const userReportData = {
+    userId: auth.profile.id,
+    userName: auth.profile.name,
+    email: auth.profile.email,
+    reportGeneratedDate: new Date(),
+    totalImpactScore: userStats.value.impactScore,
+    totalVolunteerHours: userStats.value.totalHours,
+    totalEventsCompleted: userStats.value.completedCount,
+    organizationSummaries: [] // Populate with organization summaries if needed
+  };
+
+  try {
+    const response = await $fetch('/api/reports/user', {
+      method: 'POST',
+      body: userReportData
+    })
+    
+    // Create a blob and download it
+    const blob = new Blob([response], { type: 'application/pdf' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `volunteer-report-${Date.now()}.pdf`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  } catch (error) {
+    console.error('Failed to generate report:', error)
+    alert('Failed to generate report. Please try again.')
+  }
 }
 
 // --- Fetch Logic ---
@@ -357,6 +389,8 @@ function goToEventPage(ev) {
   flex-direction: row;
   gap: 16px;
   width: 100%;
+  justify-content: center;
+  
 }
 
 .stat-card {
@@ -364,7 +398,8 @@ function goToEventPage(ev) {
   padding: 1rem 1.5rem;
   border-radius: 8px;
   box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-  display: flex;
+  justify-content: stretch;
+  align-items: stretch;
   flex-direction: column;
   align-items: flex-start;
   border: 1px solid var(--color-border, #e5e7eb);
@@ -481,11 +516,14 @@ function goToEventPage(ev) {
   grid-template-columns: repeat(7, 1fr); 
   gap: 6px; 
   flex-grow: 1; 
+  flex: 1;
+  min-width: 0;
   grid-auto-rows: 1fr; 
 }
 
 .day-cell {
   background: #fafafa;
+  flex: 1;
   padding: 6px;
   border-radius: 6px;
   border: 1px solid #f3f4f6;

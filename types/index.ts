@@ -14,7 +14,9 @@ export type {
   OrgReportData,
   PerUserSummary,
   GroupSummary,
-  ReportEventData
+  ReportEventData,
+  UserReportData,
+  UserReportOrgSummary,
 } from './reports'
 
 export type {
