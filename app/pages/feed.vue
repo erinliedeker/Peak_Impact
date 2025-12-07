@@ -245,7 +245,26 @@ const postsQuery = computed(() => {
   return getAllPostsQuery()
 })
 
-const feedPosts = useCollection<Post>(postsQuery, { ssrKey: 'feed-posts' })
+const feedPostsRaw = useCollection(postsQuery, { ssrKey: 'feed-posts' })
+
+// Normalize Firestore docs into UI-friendly objects
+const feedPosts = computed<Post[]>(() => {
+  return (feedPostsRaw.value || []).map((doc: any) => {
+    const timestamp = doc.timestamp?.toDate ? doc.timestamp.toDate() : (doc.timestamp || new Date())
+    return {
+      id: doc.id || doc.__id || '',
+      authorId: doc.authorId || '',
+      authorName: doc.authorName || 'User',
+      text: doc.text || '',
+      photoUrl: doc.photoUrl || null,
+      organizationId: doc.organizationId || null,
+      organizationName: doc.organizationName || null,
+      timestamp,
+      likes: Array.isArray(doc.likes) ? doc.likes : [],
+      commentsCount: doc.commentsCount || 0
+    }
+  })
+})
 
 // Computed properties
 const userInitials = computed(() => {
