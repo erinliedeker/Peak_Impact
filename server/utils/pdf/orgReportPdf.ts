@@ -205,7 +205,7 @@ export async function generateOrgReportPdf(data: OrgReportData): Promise<Buffer>
         doc.fillColor(colors.text)
 
         const userTableTop = doc.y
-        const userColWidths = { name: 180, email: 200, events: 80, hours: 80 }
+        const userColWidths = { email: 280, events: 100, hours: 120 }
         const userTableStartX = 50
         const userTableWidth = Object.values(userColWidths).reduce((sum, w) => sum + w, 0)
 
@@ -216,17 +216,15 @@ export async function generateOrgReportPdf(data: OrgReportData): Promise<Buffer>
 
         // Calculate column positions for user table
         const userColPositions = {
-          name: userTableStartX + 5,
-          email: userTableStartX + userColWidths.name,
-          events: userTableStartX + userColWidths.name + userColWidths.email,
-          hours: userTableStartX + userColWidths.name + userColWidths.email + userColWidths.events
+          email: userTableStartX + 5,
+          events: userTableStartX + userColWidths.email,
+          hours: userTableStartX + userColWidths.email + userColWidths.events
         }
 
         doc
           .fontSize(10)
           .font('Helvetica-Bold')
           .fillColor('#ffffff')
-          .text('Name', userColPositions.name, userTableTop + 8, { width: userColWidths.name - 10, align: 'left' })
           .text('Email', userColPositions.email, userTableTop + 8, { width: userColWidths.email - 10, align: 'left' })
           .text('Events Attended', userColPositions.events, userTableTop + 8, { width: userColWidths.events - 5, align: 'center' })
           .text('Total Hours', userColPositions.hours, userTableTop + 8, { width: userColWidths.hours - 5, align: 'center' })
@@ -246,7 +244,6 @@ export async function generateOrgReportPdf(data: OrgReportData): Promise<Buffer>
           }
 
           // Draw each cell independently with proper positioning
-          doc.text(user.name || user.email || user.userId, userColPositions.name, rowY + 7, { width: userColWidths.name - 10, align: 'left', lineBreak: false, ellipsis: true })
           doc.text(user.email || user.userId, userColPositions.email, rowY + 7, { width: userColWidths.email - 10, align: 'left', lineBreak: false, ellipsis: true })
           doc.text(user.totalEvents.toString(), userColPositions.events, rowY + 7, { width: userColWidths.events - 5, align: 'center' })
           doc.text(user.totalHours.toFixed(1), userColPositions.hours, rowY + 7, { width: userColWidths.hours - 5, align: 'center' })

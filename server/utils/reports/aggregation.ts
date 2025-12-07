@@ -6,11 +6,8 @@ import type {
   OrgReportData,
   PerUserSummary,
   GroupSummary,
-  ReportEventData,
-  ConnectEvent,
-  VolunteerAttendance
+  ReportEventData
 } from '../../../types'
-import { getFirestore, collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore'
 import { mockEvents, mockAttendance, mockOrgs, mockUsers } from './mockData'
 
 /**
@@ -47,198 +44,53 @@ function validateDateRange(from: Date, to: Date): void {
 }
 
 /**
- * Fetch events for an organization within a date range from Firebase
+ * Fetch events for an organization within a date range
+ * TODO: Replace with real Firebase/DB query
  */
 export async function fetchOrgEventsForRange(
   orgId: string,
   from: Date,
   to: Date
-): Promise<ConnectEvent[]> {
-  try {
-    const db = getFirestore()
-    const eventsRef = collection(db, 'events')
-    
-    // Query events by organization ID
-    const q = query(
-      eventsRef,
-      where('organizationId', '==', orgId)
+): Promise<Event[]> {
+  // Mock implementation
+  return mockEvents.filter((event) => {
+    const eventDate = new Date(event.date)
+    return (
+      event.org === orgId
+      && eventDate >= from
+      && eventDate <= to
     )
-    
-    const snapshot = await getDocs(q)
-    const events: ConnectEvent[] = []
-    
-    snapshot.docs.forEach(doc => {
-      const data = doc.data()
-      const eventDate = new Date(data.date)
-      
-      // Filter by date range
-      if (eventDate >= from && eventDate <= to) {
-        events.push({
-          id: doc.id,
-          title: data.title || 'Untitled Event',
-          description: data.description || '',
-          organizationId: data.organizationId,
-          organizationName: data.organizationName || '',
-          location: data.location || {},
-          date: data.date,
-          start: data.start || null,
-          end: data.end || null,
-          category: data.category || 'Social',
-          volunteersNeeded: data.volunteersNeeded || 0,
-          volunteersSignedUp: data.volunteersSignedUp || 0,
-          isMicroProject: data.isMicroProject || false,
-          suppliesNeeded: data.suppliesNeeded || [],
-          attendees: data.attendees || [],
-          createdAt: data.createdAt || new Date().toISOString(),
-          isExternal: data.isExternal || false,
-          externalUrl: data.externalUrl || undefined,
-          imageUrl: data.imageUrl || undefined
-        } as ConnectEvent)
-      }
-    })
-    
-    return events
-  } catch (error) {
-    console.error(`[fetchOrgEventsForRange] Error fetching events for org ${orgId}:`, error)
-    return []
-  }
+  })
 }
 
 /**
- * Convert Firebase attendee data to AttendanceRecord format
- */
-function convertAttendeeToAttendanceRecord(
-  eventId: string,
-  orgId: string,
-  attendee: VolunteerAttendance,
-  eventDate: string
-): AttendanceRecord {
-  // Calculate hours based on check-in and check-out times
-  let hoursWorked = 0
-  if (attendee.checkInTime && attendee.checkOutTime) {
-    const checkIn = new Date(attendee.checkInTime).getTime()
-    const checkOut = new Date(attendee.checkOutTime).getTime()
-    hoursWorked = (checkOut - checkIn) / (1000 * 60 * 60) // Convert ms to hours
-  }
-  
-  return {
-    id: `${eventId}-${attendee.volunteerId}`,
-    eventId,
-    orgId,
-    userId: attendee.volunteerId,
-    participantCount: 1,
-    hoursPerParticipant: hoursWorked,
-    totalHours: hoursWorked,
-    createdAt: new Date(eventDate)
-  } as AttendanceRecord
-}
-
-/**
- * Fetch attendance records for an organization within a date range from Firebase
+ * Fetch attendance records for an organization within a date range
+ * TODO: Replace with real Firebase/DB query
  */
 export async function fetchAttendanceForOrgAndRange(
   orgId: string,
   from: Date,
   to: Date
 ): Promise<AttendanceRecord[]> {
-  try {
-    const db = getFirestore()
-    const events = await fetchOrgEventsForRange(orgId, from, to)
-    
-    const attendanceRecords: AttendanceRecord[] = []
-    
-    // Extract attendee data from each event
-    events.forEach(event => {
-      if (event.attendees && Array.isArray(event.attendees)) {
-        event.attendees.forEach((attendee: VolunteerAttendance) => {
-          const record = convertAttendeeToAttendanceRecord(
-            event.id,
-            orgId,
-            attendee,
-            event.date
-          )
-          attendanceRecords.push(record)
-        })
-      }
-    })
-    
-    return attendanceRecords
-  } catch (error) {
-    console.error(`[fetchAttendanceForOrgAndRange] Error fetching attendance for org ${orgId}:`, error)
-    return []
-  }
+  // Mock implementation
+  const orgEvents = await fetchOrgEventsForRange(orgId, from, to)
+  const eventIds = new Set(orgEvents.map(e => e.id))
+
+  return mockAttendance.filter(att => att.orgId === orgId && eventIds.has(att.eventId))
 }
 
 /**
- * Fetch organization by ID from Firebase
+ * Fetch organization by ID
+ * TODO: Replace with real Firebase/DB query
  */
 export async function fetchOrgById(orgId: string): Promise<Org | null> {
-  try {
-    const db = getFirestore()
-    const orgRef = doc(db, 'organizations', orgId)
-    const docSnap = await getDoc(orgRef)
-    
-    if (docSnap.exists()) {
-      const data = docSnap.data()
-      return {
-        id: docSnap.id,
-        name: data.name || 'Unknown Organization',
-        EIN: data.ein || null,
-        admins: data.admins || []
-      } as Org
-    }
-    
-    return null
-  } catch (error) {
-    console.error(`[fetchOrgById] Error fetching org ${orgId}:`, error)
-    return null
-  }
-}
-
-/**
- * Fetch user profiles from Firebase
- */
-async function fetchUserProfiles(userIds: string[]): Promise<Map<string, { email?: string; name?: string }>> {
-  try {
-    const db = getFirestore()
-    const userMap = new Map<string, { email?: string; name?: string }>()
-    
-    if (userIds.length === 0) return userMap
-    
-    // Fetch user documents in chunks (Firestore limit is 10 items per query)
-    const CHUNK_SIZE = 10
-    for (let i = 0; i < userIds.length; i += CHUNK_SIZE) {
-      const chunk = userIds.slice(i, i + CHUNK_SIZE)
-      
-      for (const userId of chunk) {
-        try {
-          const userRef = doc(db, 'users', userId)
-          const userSnap = await getDoc(userRef)
-          
-          if (userSnap.exists()) {
-            const data = userSnap.data()
-            userMap.set(userId, { email: data.email || `User ${userId}`, name: data.name || undefined })
-          } else {
-            userMap.set(userId, { email: `User ${userId}` })
-          }
-        } catch (error) {
-          console.warn(`[fetchUserProfiles] Could not fetch user ${userId}:`, error)
-          userMap.set(userId, { email: `User ${userId}` })
-        }
-      }
-    }
-    
-    return userMap
-  } catch (error) {
-    console.error('[fetchUserProfiles] Error fetching user profiles:', error)
-    return new Map()
-  }
+  return mockOrgs[orgId] || null
 }
 
 /**
  * Build per-user summaries from attendance records
  */
-async function buildPerUserSummaries(attendance: AttendanceRecord[]): Promise<PerUserSummary[]> {
+function buildPerUserSummaries(attendance: AttendanceRecord[]): PerUserSummary[] {
   const userMap = new Map<string, { totalHours: number; eventIds: Set<string> }>()
 
   // Aggregate only records with userId
@@ -254,21 +106,13 @@ async function buildPerUserSummaries(attendance: AttendanceRecord[]): Promise<Pe
       userStats.eventIds.add(att.eventId)
     })
 
-  // Fetch user emails from Firebase
-  const userIds = Array.from(userMap.keys())
-  const profileMap = await fetchUserProfiles(userIds)
-
   // Convert to array of summaries
-  return Array.from(userMap.entries()).map(([userId, stats]) => {
-    const profile = profileMap.get(userId)
-    return {
-      userId,
-      name: profile?.name,
-      email: profile?.email || `User ${userId}`,
-      totalHours: stats.totalHours,
-      totalEvents: stats.eventIds.size
-    }
-  })
+  return Array.from(userMap.entries()).map(([userId, stats]) => ({
+    userId,
+    email: mockUsers[userId]?.email, // TODO: fetch from real user DB
+    totalHours: stats.totalHours,
+    totalEvents: stats.eventIds.size
+  }))
 }
 
 /**
@@ -304,7 +148,7 @@ function buildGroupSummaries(attendance: AttendanceRecord[]): GroupSummary[] {
  * Build event data with attendance metrics
  */
 function buildReportEventData(
-  events: ConnectEvent[],
+  events: Event[],
   attendance: AttendanceRecord[]
 ): ReportEventData[] {
   return events.map((event) => {
@@ -313,28 +157,14 @@ function buildReportEventData(
 
     return {
       id: event.id,
-      name: event.title,
+      name: event.name,
       date: new Date(event.date),
-      duration: event.start && event.end ? calculateDuration(event.start, event.end) : 0,
+      duration: event.duration,
       participants: totalParticipants,
-      location: typeof event.location === 'string' ? event.location : JSON.stringify(event.location),
-      capacity: event.volunteersNeeded || 0
+      location: event.location,
+      capacity: event.capacity
     }
   })
-}
-
-/**
- * Helper to calculate duration from start and end times
- */
-function calculateDuration(start: string | null, end: string | null): number {
-  if (!start || !end) return 0
-  try {
-    const startTime = new Date(start).getTime()
-    const endTime = new Date(end).getTime()
-    return (endTime - startTime) / (1000 * 60 * 60) // Convert ms to hours
-  } catch {
-    return 0
-  }
 }
 
 /**
@@ -369,8 +199,8 @@ export async function buildOrgReportData(input: OrgReportInput): Promise<OrgRepo
     ? totalParticipants / totalEvents
     : 0
 
-  // Build summaries - await async function
-  const perUserSummaries = await buildPerUserSummaries(attendance)
+  // Build summaries
+  const perUserSummaries = buildPerUserSummaries(attendance)
   const groupSummaries = buildGroupSummaries(attendance)
   const reportEvents = buildReportEventData(events, attendance)
 

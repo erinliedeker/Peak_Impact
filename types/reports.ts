@@ -14,7 +14,6 @@ export interface OrgReportInput {
  */
 export interface PerUserSummary {
   userId: string
-  name?: string
   email?: string
   totalHours: number
   totalEvents: number
