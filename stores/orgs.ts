@@ -59,6 +59,7 @@ export const useOrgStore = defineStore("orgs", {
     allOrganizations: [],
     followedOrganizations: [],
     neighborhoodGroups: [],
+    ownedOrganization: null,
     isLoading: false,
     error: null,
   }),
@@ -138,7 +139,22 @@ export const useOrgStore = defineStore("orgs", {
         this.isLoading = false;
       }
     },
-
+    async fetchOwnedOrganizations(userId: string) {
+      this.isLoading = true;
+      this.error = null;
+      try {
+        // Use the existing service method
+        const myOrgs = await OrgService.getById(userId);
+        
+        // Update state
+        this.ownedOrganization = myOrgs;
+      } catch (e) {
+        this.error = "Failed to load your organizations.";
+        console.error(e);
+      } finally {
+        this.isLoading = false;
+      }
+    },
     /**
      * Action to Create a new Organization
      */

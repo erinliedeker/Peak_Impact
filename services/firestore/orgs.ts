@@ -6,7 +6,9 @@ import {
     addDoc, 
     query, 
     where,
-    type DocumentData 
+    type DocumentData, 
+    doc,
+    getDoc
 } from 'firebase/firestore';
 import type { Organization } from '~~/types/event';
 
@@ -56,9 +58,16 @@ export const OrgService = {
     /**
      * Example: Fetch orgs created by a specific user (admin)
      */
-    async getByAdmin(userId: string): Promise<Organization[]> {
-        const q = query(getOrgCollection(), where("admins", "array-contains", userId));
-        const snapshot = await getDocs(q);
-        return snapshot.docs.map(mapDocToOrg);
-    }
+    async getById(id: string): Promise<Organization | null> {
+        const db = getFirestore();
+        const docRef = doc(db, 'organizations', id);
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists()) {
+            // Map the single document data
+            return mapDocToOrg(docSnap);
+        } else {
+            return null; // Return null if the organization is not found
+        }
+    },
 };
