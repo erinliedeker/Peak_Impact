@@ -27,6 +27,19 @@ export interface Event {
   capacity: number
 }
 
+export const globalCategories = [
+  "Animal Welfare",
+  "Arts & Culture",
+  "Community & Economic Development",
+  "Crisis & Disaster Relief",
+  "Education & Youth",
+  "Environment & Sustainability",
+  "Health & Wellness",
+  "Homelessness & Food Security",
+  "Human Rights & Advocacy",
+  "Veterans & Senior Support"
+]
+
 /**
  * AttendanceRecord supports both individual and group/bulk attendance tracking
  * 
