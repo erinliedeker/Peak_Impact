@@ -102,7 +102,7 @@ export const useAuthStore = defineStore('auth', {
     },
 
     /**
-     * Fetches user profile from backend/Firestore.
+     * Fetches user profile from Firestore.
      */
     async fetchUserProfile(uid: string) {
       this.loading = true;

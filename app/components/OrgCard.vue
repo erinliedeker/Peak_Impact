@@ -3,11 +3,14 @@
     <div class="card-banner" :class="org.type.toLowerCase()"></div>
     
     <div class="card-content">
-      <div class="org-avatar">
+      <NuxtLink :to="`/organizations/${org.id}`" class="org-avatar">
         {{ getInitials(org.name) }}
-      </div>
+      </NuxtLink>
 
-      <h3 class="org-name">{{ org.name }}</h3>
+      <NuxtLink :to="`/organizations/${org.id}`" class="name-link">
+        <h3 class="org-name">{{ org.name }}</h3>
+      </NuxtLink>
+
       <span class="org-type">{{ formatType(org.type) }}</span>
       
       <p class="org-desc">{{ org.description }}</p>
@@ -40,7 +43,6 @@ const props = defineProps({
 
 const orgStore = useOrgStore();
 
-// Computed property to check if THIS org is in the user's follow list
 const isFollowing = computed(() => {
   return orgStore.followedOrganizations.includes(props.org.id);
 });
@@ -49,9 +51,8 @@ const toggleFollow = () => {
   orgStore.toggleFollowOrg(props.org.id);
 };
 
-// Helpers
 const getInitials = (name) => name.split(' ').map(n => n[0]).join('').substring(0,2);
-const formatType = (type) => type.replace(/([A-Z])/g, ' $1').trim(); // "CityDept" -> "City Dept"
+const formatType = (type) => type.replace(/([A-Z])/g, ' $1').trim();
 </script>
 
 <style scoped>
@@ -74,10 +75,9 @@ const formatType = (type) => type.replace(/([A-Z])/g, ' $1').trim(); // "CityDep
   height: 60px;
   background-color: #cbd5e0;
 }
-/* Color code banners by type */
-.card-banner.nonprofit { background-color: var(--color-secondary); } /* Green */
-.card-banner.citydept { background-color: var(--color-primary); }    /* Blue */
-.card-banner.neighborhoodgroup { background-color: var(--color-accent); } /* Orange */
+.card-banner.nonprofit { background-color: var(--color-secondary); }
+.card-banner.citydept { background-color: var(--color-primary); }
+.card-banner.neighborhoodgroup { background-color: var(--color-accent); }
 
 .card-content {
   padding: 1.5rem;
@@ -88,13 +88,14 @@ const formatType = (type) => type.replace(/([A-Z])/g, ' $1').trim(); // "CityDep
   flex-grow: 1;
 }
 
+/* Updated Avatar Style to be clickable */
 .org-avatar {
   width: 64px;
   height: 64px;
   background: white;
   border: 4px solid white;
   border-radius: 12px;
-  margin-top: -32px; /* Pull up into banner */
+  margin-top: -32px;
   margin-bottom: 1rem;
   display: flex;
   align-items: center;
@@ -103,6 +104,17 @@ const formatType = (type) => type.replace(/([A-Z])/g, ' $1').trim(); // "CityDep
   color: var(--color-text-main);
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   font-size: 1.2rem;
+  text-decoration: none; /* Removes link underline */
+  transition: opacity 0.2s;
+}
+
+.org-avatar:hover {
+  opacity: 0.9;
+}
+
+/* Updated Name Link Style */
+.name-link {
+  text-decoration: none;
 }
 
 .org-name {
@@ -110,6 +122,13 @@ const formatType = (type) => type.replace(/([A-Z])/g, ' $1').trim(); // "CityDep
   font-weight: 700;
   color: var(--color-text-main);
   margin-bottom: 0.25rem;
+  transition: color 0.2s;
+}
+
+/* Hover effect on name */
+.name-link:hover .org-name {
+  color: var(--color-primary);
+  text-decoration: underline;
 }
 
 .org-type {
