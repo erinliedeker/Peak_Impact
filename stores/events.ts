@@ -155,6 +155,8 @@ export const useEventsStore = defineStore('events', {
                 // 2. ⭐️ FETCH USER PROFILES using the new service
                 const userProfiles = await UserService.getUsersByUids(volunteerUids); 
 
+                console.log("A", userProfiles)
+
                 // 3. Merge and create the final Attendee list
                 const detailedAttendees: Attendee[] = rawAttendance.map((record: VolunteerAttendance) => { 
                     // Find the user profile that matches the attendance record's ID
