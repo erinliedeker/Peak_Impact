@@ -1,57 +1,73 @@
 // --- Shared Data Types ---
 
 /**
- * Defines the status of a specific volunteer for a specific event.
+ * VolunteerAttendance (Database Record)
+ * Defines the administrative status of a specific volunteer for a specific event.
+ * This is the structure saved inside the ConnectEvent's 'attendees' array.
  */
 export interface VolunteerAttendance {
-    volunteerId: number;
-    volunteerName: string; // Used for letter generation
-    signedUp: boolean;
+    volunteerId: string; //same as userId string
+    status: 'registered' | 'checked-in' | 'completed' | 'cancelled'; 
+    
+    // Time/Verification Data
     checkInTime: string | null; // ISO format datetime
     checkOutTime: string | null; // ISO format datetime
-    hoursVerified: boolean; // For the service hour verification letter
+    hoursVerified: boolean;
     verificationLetterSent: boolean;
 }
 
 /**
- * Update the ConnectEvent interface to include the attendance array.
+ * Attendee (UI Object/Merged View)
+ * This is the combined view (VolunteerAttendance + User Profile) used by the dashboard modal.
+ */
+export interface Attendee {
+    /** The unique identifier (UID) of the volunteer. */
+    uid: string;
+    name: string; 
+    email: string; 
+    
+    /** The attendance status for THIS event (mirrored from VolunteerAttendance). */
+    status: 'registered' | 'checked-in' | 'completed' | 'cancelled';
+    
+    // Include other necessary fields from VolunteerAttendance for display/actions
+    checkInTime: string | null;
+    checkOutTime: string | null;
+}
+
+
+/**
+ * Update the ConnectEvent interface to use the correct VolunteerAttendance type.
  */
 export interface ConnectEvent {
     id: string;
     title: string;
     description: string;
-    organizationId: string | number;
+    organizationId: string; 
     organizationName: string;
     
-    // We update location to allow a simple string for Mobilize events, 
-    // or keep your existing GeoLocation object for Firestore events.
     location: GeoLocation | string; 
     
     date: string;
     time: string;
     
-    // You might want to allow 'string' here if Mobilize categories 
-    // don't match your hardcoded union types exactly.
     category: 'PublicSafety' | 'Environment' | 'Youth' | 'Arts' | 'Social' | string;
     
     volunteersNeeded: number;
     volunteersSignedUp: number;
     isMicroProject: boolean;
     suppliesNeeded: string[];
+    
     attendees: VolunteerAttendance[]; 
+    
     createdAt: string;
 
     // --- NEW OPTIONAL FIELDS FOR MOBILIZE ---
-    
-    // Marks the event as external so the UI knows to show a "Visit Site" button
     isExternal?: boolean;
-
-    // The direct link to the Mobilize event page
     externalUrl?: string;
-
-    // Mobilize often provides a featured image, which looks great in the UI
     imageUrl?: string;
 }
+
+// ... (GeoLocation, Organization, and Store State Types remain the same)
 /**
  * Defines the geographic coordinates for an event or micro-project.
  */

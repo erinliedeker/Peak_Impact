@@ -62,7 +62,7 @@
                   </span>
                   <span>
                     <Icon name="heroicons:map-pin" class="icon-sm" /> 
-                    {{ event.location.lat ? 'Location Set' : 'No Location' }}
+                    {{ typeof event.location === 'object' && event.location.lat ? 'Location Set' : 'No Location' }}
                   </span>
                   <span>
                     <Icon name="heroicons:users" class="icon-sm" /> 
@@ -232,7 +232,7 @@
               </div>
 
               <div class="card-footer">
-                <button class="btn btn-sm btn-outline">
+                <button @click="openCheckInModal(event)" class="btn btn-sm btn-outline">
                     View Volunteers ({{ event.attendees.length }})
                 </button>
                 <button @click="startEdit(event)" class="btn btn-sm btn-secondary icon-btn">
@@ -245,11 +245,11 @@
       </main>
     </div>
 
-    <div v-if="showCheckInModal && selectedEvent" class="modal-backdrop" @click.self="closeCheckInModal">
+    <div v-if="showCheckInModal && activeEvent" class="modal-backdrop" @click.self="closeCheckInModal">
       <div class="modal-content">
         <header class="modal-header">
           <div>
-            <h3>{{ selectedEvent.title }}</h3>
+            <h3>{{ activeEvent.title }}</h3>
             <p class="subtitle">Check-In Manager</p>
           </div>
           <button class="close-btn" @click="closeCheckInModal">
@@ -268,7 +268,7 @@
                <span class="stat-label">Verified</span>
             </div>
             <div class="stat-box">
-               <span class="stat-num">{{ mockVolunteers.length }}</span>
+               <span class="stat-num">{{ eventAttendees.length }}</span>
                <span class="stat-label">Total</span>
             </div>
           </div>
@@ -281,7 +281,7 @@
           </div>
 
           <ul class="volunteer-list">
-            <li v-for="volunteer in mockVolunteers" :key="volunteer.uid" class="volunteer-row">
+            <li v-for="volunteer in eventAttendees" :key="volunteer.uid" class="volunteer-row">
               <div class="volunteer-info">
                 <strong>{{ volunteer.name }}</strong>
                 <span :class="['status-dot', volunteer.status]"></span>
@@ -291,7 +291,7 @@
               <div class="volunteer-actions">
                 <button 
                   v-if="volunteer.status === 'registered'" 
-                  @click="updateStatus(volunteer, 'checked-in')"
+                  @click="handleCheckIn(volunteer)"
                   class="btn btn-sm btn-success icon-btn"
                 >
                   <Icon name="heroicons:clipboard-document-check" /> Check In
@@ -304,10 +304,14 @@
                 >
                   <Icon name="heroicons:arrow-right-on-rectangle" /> Check Out
                 </button>
-
-                <span v-if="volunteer.status === 'completed'" class="verified-badge">
-                  <Icon name="heroicons:check-badge" /> Verified
-                </span>
+                
+                <button
+                  v-if="volunteer.status === 'completed'"
+                  @click="handleGenerateLetter(volunteer)"
+                  class="btn btn-sm btn-outline icon-btn"
+                >
+                   <Icon name="heroicons:envelope" /> Letter
+                </button>
               </div>
             </li>
           </ul>
@@ -328,7 +332,7 @@ import { useOrgStore } from '~~/stores/orgs'
 import { useEventsStore } from '~~/stores/events'
 
 // --- Types ---
-import type { ConnectEvent } from '~~/types/event'
+import type { ConnectEvent, Attendee } from '~~/types/event'
 
 // 1. Store Initialization
 const authStore = useAuthStore()
@@ -347,29 +351,27 @@ const showCheckInModal = ref(false)
 const isSubmitting = ref(false)
 const suppliesInput = ref('')
 const formError = ref<string | null>(null)
-const selectedEvent = ref<ConnectEvent | null>(null)
-
-// --- Mock Data ---
-const mockVolunteers = ref([
-  { uid: '1', name: 'Alice Walker', status: 'registered' },
-  { uid: '2', name: 'Bob Smith', status: 'checked-in' },
-  { uid: '3', name: 'Charlie Day', status: 'completed' },
-  { uid: '4', name: 'Dana Scully', status: 'registered' },
-])
+const activeEvent = ref<ConnectEvent | null>(null) // Used for the check-in modal
+const eventAttendees = ref<Attendee[]>([]); 
 
 // --- Types for Form ---
-type EventFormState = Omit<ConnectEvent, 'id' | 'organizationId' | 'organizationName' | 'volunteersSignedUp' | 'attendees'>
+// Omitting fields that are calculated or set by the store/server (e.g., organizationId, createdAt, attendees count)
+type EventFormState = Omit<ConnectEvent, 'id' | 'organizationId' | 'organizationName' | 'volunteersSignedUp' | 'attendees' | 'createdAt'>
 
 const INITIAL_FORM_STATE: EventFormState = {
   title: '',
   description: '',
   date: '',
   time: '',
-  location: { lat: 38.8339, lng: -104.8214 },
+  // Default to GeoLocation for internal forms
+  location: { lat: 38.8339, lng: -104.8214 }, 
   category: 'Social',
   volunteersNeeded: 5,
   isMicroProject: false,
   suppliesNeeded: [],
+  isExternal: false,
+  externalUrl: undefined,
+  imageUrl: undefined,
 }
 
 const eventForm = reactive<EventFormState>({ ...INITIAL_FORM_STATE })
@@ -378,12 +380,15 @@ const eventForm = reactive<EventFormState>({ ...INITIAL_FORM_STATE })
 
 const todaysEvents = computed(() => {
   if (!organizationEvents.value) return []
-  return organizationEvents.value.slice(0, 1) 
+  // Filter by today's date (assuming ISO date string 'YYYY-MM-DD')
+  const today = new Date().toISOString().split('T')[0];
+  return organizationEvents.value.filter(e => e.date === today) 
 })
 
 const otherEvents = computed(() => {
    if (!organizationEvents.value) return []
-   return organizationEvents.value.slice(1) 
+   const todayEventIds = todaysEvents.value.map(e => e.id);
+   return organizationEvents.value.filter(e => !todayEventIds.includes(e.id))
 })
 
 // 5. Actions
@@ -392,23 +397,33 @@ async function loadDashboardData() {
   if (!profile.value?.organizationId) return
   await orgStore.fetchOwnedOrganizations(profile.value.organizationId)
   if (ownedOrganization.value) {
+    // Ensuring the ID is passed correctly (it's typed as string|number in the store)
     await eventStore.fetchOrganizationEvents(ownedOrganization.value.id)
   }
 }
 
 // Modal Logic
-function openCheckInModal(event: ConnectEvent) {
-  selectedEvent.value = event
+async function openCheckInModal(event: ConnectEvent) {
+  activeEvent.value = event
   showCheckInModal.value = true
+  
+  // Fetch the detailed list of attendees
+  try {
+    eventAttendees.value = await eventStore.fetchEventAttendees(event.id);
+  } catch (error) {
+    console.error("Failed to load attendees:", error);
+    eventAttendees.value = [];
+  }
 }
 
 function closeCheckInModal() {
   showCheckInModal.value = false
-  selectedEvent.value = null
+  activeEvent.value = null
+  eventAttendees.value = [] // Clear list on close
 }
 
-function getAttendeesByStatus(status: string) {
-  return mockVolunteers.value.filter(v => v.status === status)
+function getAttendeesByStatus(status: Attendee['status']) {
+  return eventAttendees.value.filter(v => v.status === status)
 }
 
 function formatStatus(status: string) {
@@ -417,19 +432,64 @@ function formatStatus(status: string) {
   return 'Registered'
 }
 
-// Check-In Logic
-function updateStatus(volunteer: any, newStatus: string) {
-  volunteer.status = newStatus
-  if (volunteer.status === 'checked-in') {
-    eventStore.checkInVolunteer(selectedEvent.value!.id, volunteer.uid);
-  } 
+async function handleCheckIn(volunteer: Attendee) {
+  // ✅ FIX: Null check for activeEvent
+  if (!activeEvent.value) { 
+      console.error("Cannot check in: No active event context.");
+      return;
+  }
+
+  try {
+    // 1. Call the store action (persists to Firestore)
+    await eventStore.checkInVolunteer(activeEvent.value.id, volunteer.uid);
+
+    // 2. Update local state immediately for fast UI feedback
+    const index = eventAttendees.value.findIndex(a => a.uid === volunteer.uid);
+    if (index !== -1) {
+      eventAttendees.value[index].status = 'checked-in';
+    }
+  } catch (e) {
+    console.error("Check-In failed:", e);
+  }
 }
 
-function handleCheckOut(volunteer: any) {
-  if(confirm(`Finish volunteering for ${volunteer.name}? This will send them a verification email.`)) {
-    updateStatus(volunteer, 'completed')
-    eventStore.checkOutVolunteer(selectedEvent.value!.id, volunteer.uid);
-    eventStore.generateVerificationLetter(selectedEvent.value!.id, volunteer.uid);
+async function handleCheckOut(volunteer: Attendee) {
+  // ✅ FIX: Null check for activeEvent
+  if (!activeEvent.value) return; 
+
+  if(confirm(`Finish volunteering for ${volunteer.name}? This will mark hours verified and update attendance status.`)) {
+    try {
+      // 1. Call the store action (persists to Firestore)
+      await eventStore.checkOutVolunteer(activeEvent.value.id, volunteer.uid);
+      
+      // 2. Update local state immediately
+      const index = eventAttendees.value.findIndex(a => a.uid === volunteer.uid);
+      if (index !== -1) {
+        eventAttendees.value[index].status = 'completed';
+      }
+    } catch (e) {
+      console.error("Check-Out failed:", e);
+    }
+  }
+}
+
+async function handleGenerateLetter(volunteer: Attendee) {
+  // ✅ FIX: Null check for activeEvent
+  if (!activeEvent.value) return;
+
+  if (volunteer.status !== 'completed') {
+    alert("Volunteer must have 'Completed' status before generating a letter.");
+    return;
+  }
+  
+  try {
+    // Call the store action
+    await eventStore.generateVerificationLetter(activeEvent.value.id, volunteer.uid);
+    alert(`Verification letter process initiated for ${volunteer.name}.`);
+
+  } catch (e) {
+    console.error("Letter generation failed:", e);
+    alert("Failed to initiate letter generation.");
   }
 }
 
@@ -448,6 +508,7 @@ function removeSupply(index: number) {
 }
 
 function resetForm() {
+  // Use Object.assign to reset reactive object
   Object.assign(eventForm, INITIAL_FORM_STATE)
   eventForm.suppliesNeeded = [] 
   editingEventId.value = null 
@@ -461,16 +522,23 @@ function toggleForm() {
 }
 
 function startEdit(event: ConnectEvent) {
+  // Map event data to form state
   Object.assign(eventForm, {
     title: event.title,
     description: event.description,
     date: event.date,
     time: event.time,
-    location: { ...event.location },
+    // Handle location (copy only GeoLocation type)
+    location: (typeof event.location === 'object' && event.location !== null) 
+      ? { ...event.location } 
+      : INITIAL_FORM_STATE.location, 
     category: event.category,
     volunteersNeeded: event.volunteersNeeded,
     isMicroProject: event.isMicroProject,
     suppliesNeeded: [...event.suppliesNeeded],
+    isExternal: event.isExternal,
+    externalUrl: event.externalUrl,
+    imageUrl: event.imageUrl,
   })
   
   editingEventId.value = event.id
@@ -479,6 +547,7 @@ function startEdit(event: ConnectEvent) {
   window.scrollTo({ top: 100, behavior: 'smooth' })
 }
 
+// Handles Create/Update delegation
 async function handleSubmit() {
   if (editingEventId.value) {
     await handleUpdateEvent()
@@ -493,9 +562,11 @@ async function handleCreateEvent() {
   formError.value = null
 
   try {
-    const payload: Omit<ConnectEvent, 'id'> = {
+    // ✅ FIX: Payload type now correctly omits 'createdAt'
+    const payload: Omit<ConnectEvent, 'id' | 'createdAt'> = {
       ...eventForm,
-      organizationId: ownedOrganization.value.id,
+      // ✅ FIX: organizationId explicitly cast to String
+      organizationId: String(ownedOrganization.value.id), 
       organizationName: ownedOrganization.value.name,
       volunteersSignedUp: 0,
       attendees: [],
@@ -512,17 +583,24 @@ async function handleCreateEvent() {
   }
 }
 
+// FINALIZED UPDATE ACTION
 async function handleUpdateEvent() {
-  if (!editingEventId.value) return
+  if (!editingEventId.value || !ownedOrganization.value) return
   isSubmitting.value = true
   formError.value = null
 
   try {
     const payload = {
       ...eventForm,
-      id: editingEventId.value
+      id: editingEventId.value,
+      // ✅ FIX: organizationId explicitly cast to String
+      organizationId: String(ownedOrganization.value.id), 
+      organizationName: ownedOrganization.value.name,
     }
-    await eventStore.updateEvent(payload)
+
+    // Call the store's update action
+    await eventStore.updateEvent(payload as any) // Using 'as any' for partial interface compatibility
+    
     showCreateForm.value = false
     resetForm()
     alert('Event Updated Successfully!')
@@ -856,9 +934,9 @@ input:focus, textarea:focus, select:focus {
 }.fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 .pulse {
-  color: var(--color-secondary); /* or #22c55e */
+  color: var(--color-secondary); 
   animation: pulse 2s infinite;
-  margin-left: 8px; /* Adds a little space between text and dot */
-  font-size: 1.2rem; /* Adjust size of the dot */
+  margin-left: 8px; 
+  font-size: 1.2rem; 
 }
 </style>
