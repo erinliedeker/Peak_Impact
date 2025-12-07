@@ -1025,6 +1025,7 @@ userHours.value = 42.5
   font-weight: 600;
   font-size: 0.75rem;
   flex-shrink: 0;
+  margin-left: 15px;
 }
 
 .comment-bubble {
@@ -1032,6 +1033,8 @@ userHours.value = 42.5
   background: #f8fafc;
   border-radius: 12px;
   padding: 0.75rem 1rem;
+  margin-right:15px;
+  margin-bottom: 10px;
 }
 
 .comment-header {
