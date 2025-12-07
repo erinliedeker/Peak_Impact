@@ -1,23 +1,25 @@
 <template>
-  <EventSearchBar
-    @search="onSearch"
-    @update:filters="onFiltersUpdate"
-  />
-  <div class="content-window">
-    <div class="event-list-container">
-      <EventList class="event-list"
-      :events="displayedEvents" 
-      @select="openEvent"
-      />
+  <div class="events-page">
+    <EventSearchBar
+      @search="onSearch"
+      @update:filters="onFiltersUpdate"
+    />
+    <div class="content-window">
+      <div class="event-list-container">
+        <EventList class="event-list"
+        :events="displayedEvents" 
+        @select="openEvent"
+        />
+      </div>
+      <div class="event-card-container">
+        <EventCard class="event-card"
+          v-if="selectedEvent"
+          :item="selectedEvent"
+        />
+      </div>
     </div>
-    <div class="event-card-container">
-      <EventCard class="event-card"
-        v-if="selectedEvent"
-        :item="selectedEvent"
-      />
-    </div>
-  </div>
 
+  </div>  
   <div v-if="loading" class="placeholder-page">Loading events...</div>
 </template>
 
@@ -116,12 +118,16 @@ onMounted(fetchEvents)
 </script>
 
 <style scoped>
+.events-page {
+  height: 86vh;
+}
 
 .content-window {
   display: flex;
   flex-direction: row;
   width: 100%;
   height: 100%;
+  overflow: clip;
 }
 
 .event-list-container {
