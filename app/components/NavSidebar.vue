@@ -1,43 +1,55 @@
 <template>
   <aside class="sidebar">
     <div class="sidebar-header">
-      <h1 class="logo">Peak Impact 🏔️</h1>
+      <h1 class="logo">
+        <Icon name="heroicons:trophy-solid" class="logo-icon" />
+        Peak Impact
+      </h1>
     </div>
 
     <nav class="nav-links">
+      
       <NuxtLink to="/feed" class="nav-item" active-class="active">
-        <span class="icon">📰</span>
+        <Icon name="heroicons:newspaper-solid" class="icon" />
         <span class="label">Feed</span>
       </NuxtLink>
 
       <NuxtLink to="/events" class="nav-item" active-class="active">
-        <span class="icon">🗓️</span>
+        <Icon name="heroicons:map-solid" class="icon" />
         <span class="label">Events</span>
       </NuxtLink>
 
       <NuxtLink to="/organizations" class="nav-item" active-class="active">
-        <span class="icon">🏢</span>
+        <Icon name="heroicons:building-office-2-solid" class="icon" />
         <span class="label">Organizations</span>
       </NuxtLink>
 
       <NuxtLink to="/my-events" class="nav-item" active-class="active">
-        <span class="icon">🎟️</span>
+        <Icon name="heroicons:ticket-solid" class="icon" />
         <span class="label">My Events</span>
       </NuxtLink>
 
       <NuxtLink to="/inbox" class="nav-item" active-class="active">
-        <span class="icon">💬</span>
+        <Icon name="heroicons:chat-bubble-left-right-solid" class="icon" />
         <span class="label">Inbox</span>
         <span v-if="unreadCount > 0" class="badge">{{ unreadCount }}</span>
+      </NuxtLink>
+
+      <NuxtLink to="/profile" class="nav-item" active-class="active">
+        <Icon name="heroicons:user-circle-solid" class="icon" />
+        <span class="label">Profile</span>
       </NuxtLink>
 
       <div v-if="auth.isOrgAdmin" class="org-section">
         <p class="section-title">MANAGEMENT</p>
         <NuxtLink to="/org/dashboard" class="nav-item org-link" active-class="active">
-          <span class="icon">⚙️</span>
+          <Icon name="heroicons:cog-6-tooth-solid" class="icon" />
           <span class="label">Org Dashboard</span>
         </NuxtLink>
       </div>
+    </nav>
+
+    <div class="sidebar-footer">
       <div v-if="auth.isLoggedIn" class="user-info">
         <div class="avatar-circle">
           {{ auth.userName ? auth.userName.charAt(0).toUpperCase() : 'U' }}
@@ -46,18 +58,17 @@
         <div class="user-details">
           <span class="user-name">{{ auth.userName }}</span>
           <button @click="handleLogout" class="logout-btn">
-            Log Out
+            <Icon name="heroicons:arrow-right-on-rectangle" /> Log Out
           </button>
         </div>
       </div>
 
-      <div v-else>
+      <div v-else class="login-prompt">
         <NuxtLink to="/login" class="login-btn">
           Log In / Sign Up
         </NuxtLink>
       </div>
-    </nav>
-
+    </div>
     
   </aside>
 </template>
@@ -80,17 +91,21 @@ const handleLogout = () => {
 <style scoped>
 /* Sidebar Container */
 .sidebar {
+  position: fixed;
+  top: 0;
+  bottom: 0; /* Anchors to bottom edge */
+  left: 0;
+  
+  /* Remove height: 100vh */
+  width: 260px;
   display: flex;
   flex-direction: column;
-  width: 260px;
-  height: 100vh;
+  padding: 1.5rem;
+  padding-bottom: 2rem; /* Safety buffer for the footer */
   background-color: var(--color-white, #ffffff);
   border-right: 1px solid var(--color-border);
-  padding: 1.5rem;
-  position: fixed;
-  left: 0;
-  top: 0;
   z-index: 50;
+  overflow: hidden;
 }
 
 /* Header & Logo */
@@ -104,6 +119,14 @@ const handleLogout = () => {
   font-weight: 800;
   color: var(--color-primary); /* Pikes Peak Blue */
   letter-spacing: -0.02em;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo-icon {
+  font-size: 1.75rem;
+  color: var(--color-primary);
 }
 
 /* Navigation Links */
@@ -111,7 +134,7 @@ const handleLogout = () => {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  flex-grow: 1;
+  flex-grow: 1; /* Pushes the footer down */
 }
 
 .nav-item {
@@ -137,14 +160,14 @@ const handleLogout = () => {
 .nav-item.active {
   background-color: #EBF8FF; /* Very light blue tint */
   color: var(--color-primary); /* Pikes Peak Blue */
-  /* Optional: Add an orange accent stripe for visual pop */
   border-left: 4px solid var(--color-accent); 
 }
 
+/* Icon Styling */
 .icon {
-  font-size: 1.2rem;
+  font-size: 1.5rem;
   min-width: 24px;
-  text-align: center;
+  color: inherit;
 }
 
 /* Inbox Badge */
@@ -176,7 +199,7 @@ const handleLogout = () => {
 }
 
 .org-link {
-  color: var(--color-accent); /* Orange for Admin distinction */
+  color: var(--color-accent);
 }
 
 .org-link.active {
@@ -186,7 +209,7 @@ const handleLogout = () => {
 
 /* Footer & Profile */
 .sidebar-footer {
-  margin-top: auto;
+  margin-top: auto; /* Uses flex-grow from nav-links to sit at bottom */
   padding-top: 1.5rem;
   border-top: 1px solid var(--color-border);
 }
@@ -200,7 +223,7 @@ const handleLogout = () => {
 .avatar-circle {
   width: 40px;
   height: 40px;
-  background-color: var(--color-primary); /* Pikes Peak Blue */
+  background-color: var(--color-primary);
   color: white;
   border-radius: 50%;
   display: flex;
@@ -229,10 +252,13 @@ const handleLogout = () => {
   font-size: 0.8rem;
   color: var(--color-text-sub);
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .logout-btn:hover {
-  color: var(--color-accent); /* Orange on hover */
+  color: var(--color-accent);
   text-decoration: underline;
 }
 
@@ -240,7 +266,7 @@ const handleLogout = () => {
   display: block;
   width: 100%;
   text-align: center;
-  background-color: var(--color-primary); /* Pikes Peak Blue */
+  background-color: var(--color-primary);
   color: white;
   padding: 10px;
   border-radius: 8px;
