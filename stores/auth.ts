@@ -1,6 +1,5 @@
 import { defineStore } from 'pinia';
 import { 
-  getAuth,
   signInWithEmailAndPassword, 
   signOut, 
   updateProfile 
@@ -55,8 +54,19 @@ export const useAuthStore = defineStore('auth', {
      * Initializes the Firebase Auth listener.
      * MUST be called from a Nuxt Plugin (e.g., plugins/auth.ts).
      */
-    initializeAuth() {
+    async initializeAuth() {
       if (process.server) return; // Ensure this only runs on client
+
+      // Disable Firebase auth persistence - use session storage only (clears on browser close)
+      const auth = useFirebaseAuth();
+      if (auth) {
+        const { setPersistence, browserSessionPersistence } = await import('firebase/auth');
+        try {
+          await setPersistence(auth, browserSessionPersistence);
+        } catch (error) {
+          console.error('[AuthStore] Failed to set persistence:', error);
+        }
+      }
 
       const firebaseUser = useCurrentUser(); // VueFire composable
 
@@ -113,8 +123,12 @@ export const useAuthStore = defineStore('auth', {
         const docSnap = await getDoc(docRef);
       
         if (docSnap.exists()) {
-          this.profile = docSnap.data() as UserProfile;
-          console.log("User logged in: ", docSnap.data())
+          const data = docSnap.data();
+          this.profile = {
+            ...data,
+            id: uid // Add document ID to profile
+          } as UserProfile;
+          console.log("User logged in: ", this.profile)
 
         } else {
           throw new Error('User profile document not found.');
@@ -153,17 +167,29 @@ export const useAuthStore = defineStore('auth', {
      * Signs the user out and optionally redirects.
      */
     async logout(shouldRedirect = true) {
-      const auth = getAuth(); 
+      const auth = useFirebaseAuth();
+      if (!auth) return;
 
       this.loading = true;
 
       try {
         await signOut(auth);
         
-        // Note: The watcher in initializeAuth will handle the state reset (isLoggedIn = false)
+        // Explicitly clear ALL storage to ensure complete logout
+        sessionStorage.clear();
+        
+        // Clear all Firebase-related localStorage entries
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('firebase:') || key.includes('auth')) {
+            localStorage.removeItem(key);
+          }
+        });
+        
+        // Reset state immediately
+        this.resetState();
         
         if (shouldRedirect) {
-           window.location.href = '/'; 
+           window.location.href = '/login'; 
         }
       } catch (err) {
         console.error('[AuthStore] Logout Error:', err);
