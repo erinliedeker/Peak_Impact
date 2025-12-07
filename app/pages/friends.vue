@@ -126,16 +126,6 @@ const filteredList = computed(() => {
 
 onMounted(async () => {
   await loadConnections();
-  
-  // Refresh every 5 seconds to show real-time updates
-  const refreshInterval = setInterval(async () => {
-    await loadConnections();
-  }, 5000);
-  
-  // Cleanup interval on unmount
-  onUnmounted(() => {
-    clearInterval(refreshInterval);
-  });
 });
 
 async function loadConnections() {

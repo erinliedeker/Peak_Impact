@@ -455,6 +455,7 @@ async function handleCheckIn(volunteer: Attendee) {
     // 1. Call Store (which calls Firebase)
     await eventStore.checkInVolunteer(activeEvent.value.id, volunteer.uid);
 
+
     // 2. Optimistic Update: Update local list immediately
     const target = eventAttendees.value.find(a => a.uid === volunteer.uid);
     if (target) {
@@ -570,9 +571,9 @@ async function handleCreateEvent() {
 }
 
 async function handleUpdateEvent() {
-  if (!editingEventId.value || !ownedOrganization.value) return
-  isSubmitting.value = true
-  formError.value = null
+  // if (!editingEventId.value) return
+  // isSubmitting.value = true
+  // formError.value = null
 
   try {
     const payload = {

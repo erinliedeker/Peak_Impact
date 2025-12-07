@@ -304,7 +304,7 @@ async function loadPeople(): Promise<void> {
       });
     }
     
-    people.value = list;
+    people.value = list.slice(0,16);
   } catch (e) {
     console.error('Load users failed', e);
   }
