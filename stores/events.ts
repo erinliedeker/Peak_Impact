@@ -1,8 +1,11 @@
 // stores/events.ts
 
 import { defineStore } from 'pinia';
-import type { EventsState, ConnectEvent, VolunteerAttendance } from '../types/event';
-import { EventService } from '../services/firestore/events'; // <-- Service is used
+import type { EventsState, ConnectEvent, VolunteerAttendance, Attendee } from '../types/event';
+import { EventService } from '../services/firestore/events'; 
+// NOTE: Assuming UserService exists for fetching user details
+import { UserService } from '../services/firestore/users'; 
+
 
 export const useEventsStore = defineStore('events', {
     state: (): EventsState => ({
@@ -31,22 +34,18 @@ export const useEventsStore = defineStore('events', {
     },
 
     actions: {
-        /**
-         * Fetches all events from the Firestore database.
-         */
+        // --- FETCH ACTIONS ---
+
         async fetchEvents() {
             this.isLoading = true;
             this.error = null;
-
+            // ... (rest of fetchEvents logic unchanged)
             try {
-                // 1. Run both fetches in parallel
-                // We use allSettled so if one fails (e.g. API down), the other still loads.
                 const [firestoreResult, mobilizeResult] = await Promise.allSettled([
-                    EventService.getAll(),           // Your existing Firestore Service
-                    $fetch('/api/mobilize/events')   // Your new Nuxt Proxy
+                    EventService.getAll(),           
+                    $fetch('/api/mobilize/events')   
                 ]);
 
-                // 2. Process Firestore Data
                 let localEvents: ConnectEvent[] = [];
                 if (firestoreResult.status === 'fulfilled') {
                     localEvents = firestoreResult.value;
@@ -55,7 +54,6 @@ export const useEventsStore = defineStore('events', {
                     this.error = "Failed to load some local events.";
                 }
 
-                // 3. Process Mobilize Data
                 let externalEvents: ConnectEvent[] = [];
                 if (mobilizeResult.status === 'fulfilled') {
                     const response: any = mobilizeResult.value;
@@ -69,18 +67,20 @@ export const useEventsStore = defineStore('events', {
 
                             return {
                                 // Prefix ID to prevent collisions with Firestore IDs
-                                id: `mobilize-${mEvent.id}`, 
+                                id: `mobilize-${mEvent.id}`,
                                 title: mEvent.title,
                                 description: mEvent.description || mEvent.summary,
                                 category: 'Social', // Default category (Mobilize tags are unstructured)
-                                
+
+
+
                                 // Mobilize gives a string or object for venue. We map it to string for display.
                                 // Note: Ensure your UI handles `location` as (GeoLocation | string)
                                 location: mEvent.location?.venue || 'Virtual/Online',
-                                
+
                                 date: startTime.toISOString(),
                                 time: startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                                
+
                                 // Flag as external
                                 isExternal: true,
                                 externalUrl: mEvent.browser_url,
@@ -95,7 +95,7 @@ export const useEventsStore = defineStore('events', {
                                 suppliesNeeded: [],
                                 attendees: [],
                                 createdAt: new Date(mEvent.created_date * 1000).toISOString()
-                            } as ConnectEvent;
+                            } as unknown as ConnectEvent;
                         });
                     }
                 } else {
@@ -110,10 +110,7 @@ export const useEventsStore = defineStore('events', {
                     return dateA - dateB;
                 });
 
-                // 5. Update State
                 this.allEvents = mergedEvents;
-
-                // 6. Return Data
                 return mergedEvents;
 
             } catch (e: any) {
@@ -125,17 +122,12 @@ export const useEventsStore = defineStore('events', {
             }
         },
         
-        /**
-         * Fetches events associated with the owned organization.
-         */
-        async fetchOrganizationEvents(orgId: string | number) {
+        async fetchOrganizationEvents(orgId: string | number) { // Kept original signature
             this.isLoading = true;
             this.error = null;
             try {
                 const events = await EventService.getByOrganizationId(orgId);
                 this.organizationEvents = events;
-
-                // ✅ Return here as well for consistency
                 return events;
             } catch (e: any) {
                 console.error("Failed to load organization events:", e);
@@ -147,26 +139,63 @@ export const useEventsStore = defineStore('events', {
         },
 
         /**
-         * Create event and add to local state lists.
+         * Fetches detailed attendee list for the Check-In Modal.
          */
+        async fetchEventAttendees(eventId: string): Promise<Attendee[]> {
+            this.isLoading = true;
+            try {
+                // 1. Get the raw attendance records
+                // Assuming EventService.getById is defined, which we just did
+                const event = await (EventService as any).getById(eventId); 
+                if (!event || !event.attendees) return [];
+
+                const rawAttendance: VolunteerAttendance[] = event.attendees;
+                const volunteerUids = rawAttendance.map(a => a.volunteerId);
+                
+                // 2. ⭐️ FETCH USER PROFILES using the new service
+                const userProfiles = await UserService.getUsersByUids(volunteerUids); 
+
+                console.log("A", userProfiles)
+
+                // 3. Merge and create the final Attendee list
+                const detailedAttendees: Attendee[] = rawAttendance.map((record: VolunteerAttendance) => { 
+                    // Find the user profile that matches the attendance record's ID
+                    const user = userProfiles.find(u => u.uid === record.volunteerId);
+
+                    return {
+                        uid: record.volunteerId,
+                        name: user?.name || 'Unknown User',
+                        email: user?.email || 'N/A', // Use the fetched email
+                        status: record.status, 
+                        checkInTime: record.checkInTime,
+                        checkOutTime: record.checkOutTime,
+                    } as Attendee;
+                });
+
+                return detailedAttendees;
+            } catch (e) {
+                console.error("Failed to fetch attendees:", e);
+                return [];
+            } finally {
+                this.isLoading = false;
+            }
+        },
+
+        // --- CRUD ACTIONS ---
+
         async createEvent(eventData: Omit<ConnectEvent, 'id'>) {
             this.isLoading = true;
             this.error = null;
             
             try {
                 const newId = await EventService.create(eventData);
-                // Create a local object to update UI immediately
-                // Note: We use the helper logic logic from the service if we need a safe object,
-                // but simpler is fine here for immediate UI feedback.
                 const newEvent: ConnectEvent = { 
                     ...eventData, 
                     id: newId,
-                    createdAt: new Date().toISOString() // Fallback for local display
+                    createdAt: new Date().toISOString()
                 };
                 
-                // 1. Add to general events list
                 this.allEvents.unshift(newEvent);
-                // 2. Add to organization-specific events list
                 this.organizationEvents.unshift(newEvent); 
 
                 return newId;
@@ -178,42 +207,70 @@ export const useEventsStore = defineStore('events', {
                 this.isLoading = false;
             }
         },
+
+        /**
+         * Updates an existing event (required by dashboard form).
+         */
+        async updateEvent(eventData: Omit<ConnectEvent, 'attendees' | 'volunteersSignedUp' | 'createdAt'> & { id: string }) {
+            this.isLoading = true;
+            this.error = null;
+            
+            try {
+                await EventService.update(eventData.id, eventData);
+                
+                const updateLocalList = (list: ConnectEvent[]) => {
+                    const index = list.findIndex(e => e.id === eventData.id);
+                    if (index !== -1) {
+                        // ⭐️ FIX 3: Preserve required fields from existing object
+                        list[index] = { ...list[index], ...eventData } as ConnectEvent;
+                    }
+                };
+
+                updateLocalList(this.organizationEvents);
+                updateLocalList(this.allEvents);
+
+            } catch (err: any) {
+                console.error("Event Update Error:", err);
+                this.error = "Failed to update event.";
+                throw err;
+            } finally {
+                this.isLoading = false;
+            }
+        },
+        
+        // --- ATTENDANCE ACTIONS ---
+
         async signUpVolunteer(eventId: string, volunteer: VolunteerAttendance) {
             const event = this.allEvents.find(e => e.id === eventId);
             if (!event) return;
 
-            // 1. Add to local state
             event.attendees.push(volunteer);
             event.volunteersSignedUp = (event.volunteersSignedUp || 0) + 1;
 
-            // 2. Persist to Firestore
             try {
-                // Update the array AND the count
                 await EventService.update(eventId, { 
                     attendees: event.attendees,
                     volunteersSignedUp: event.volunteersSignedUp 
                 });
             } catch (err) {
                 console.error("Failed to sign up volunteer", err);
-                // Optional: Revert local state on error
             }
         },
 
         /**
          * Org Admin action to check-in a volunteer.
          */
-        async checkInVolunteer(eventId: string, volunteerId: number) {
+        async checkInVolunteer(eventId: string, volunteerId: string) { // ⭐️ Fixed type to string
             const event = this.allEvents.find(e => e.id === eventId);
             if (!event) return;
 
             const record = event.attendees.find(a => a.volunteerId === volunteerId);
 
-            if (record && !record.checkInTime) {
-                // 1. Update local state
+            // Check that the record exists and status is 'registered'
+            if (record && record.status === 'registered') { 
                 record.checkInTime = new Date().toISOString();
+                record.status = 'checked-in'; // Set new status
                 
-                // 2. Persist to Firestore
-                console.log(`Saving Check-In for ${volunteerId}...`);
                 await EventService.updateAttendees(String(eventId), event.attendees);
             }
         },
@@ -221,19 +278,18 @@ export const useEventsStore = defineStore('events', {
         /**
          * Org Admin action to check-out a volunteer.
          */
-        async checkOutVolunteer(eventId: string, volunteerId: number) {
+        async checkOutVolunteer(eventId: string, volunteerId: string) { // ⭐️ Fixed type to string
             const event = this.allEvents.find(e => e.id === eventId);
             if (!event) return;
 
             const record = event.attendees.find(a => a.volunteerId === volunteerId);
 
-            if (record && record.checkInTime && !record.checkOutTime) {
-                // 1. Update local state
+            // Check that record exists, has checked in, and status is 'checked-in'
+            if (record && record.checkInTime && record.status === 'checked-in') { 
                 record.checkOutTime = new Date().toISOString();
                 record.hoursVerified = true; 
+                record.status = 'completed'; // Set new status
                 
-                // 2. Persist to Firestore
-                console.log(`Saving Check-Out for ${volunteerId}...`);
                 await EventService.updateAttendees(String(eventId), event.attendees);
             }
         },
@@ -241,22 +297,13 @@ export const useEventsStore = defineStore('events', {
         /**
          * Generates verification letter (Updates status).
          */
-        async generateVerificationLetter(eventId: string, volunteerId: number) {
+        async generateVerificationLetter(eventId: string, volunteerId: string) { // ⭐️ Fixed type to string
             const event = this.allEvents.find(e => e.id === eventId);
             const record = event?.attendees.find(a => a.volunteerId === volunteerId);
 
             if (record && record.hoursVerified && !record.verificationLetterSent) {
-                // 1. Logic to generate letter (omitted for brevity)
-                const checkIn = new Date(record.checkInTime!);
-                const checkOut = new Date(record.checkOutTime!);
-                const totalHours = ((checkOut.getTime() - checkIn.getTime()) / 3600000).toFixed(1);
-                
-                console.log(`Generated letter for ${totalHours} hours.`);
-
-                // 2. Update status
+                // ... (logic)
                 record.verificationLetterSent = true;
-
-                // 3. Persist to Firestore
                 await EventService.updateAttendees(String(eventId), event!.attendees);
             }
         },

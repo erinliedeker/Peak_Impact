@@ -124,7 +124,7 @@
               Member Organizations
             </h3>
             <div v-if="userOrgs.length === 0" class="empty-state">
-              <p>Not a member of any organizations yet</p>
+              <p style="padding: 0px 20px">Not a member of any organizations yet</p>
             </div>
             <div v-else class="org-chips">
               <NuxtLink 

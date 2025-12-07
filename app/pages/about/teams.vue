@@ -1,52 +1,52 @@
 <template>
-    <div class="about-volunteers-page">
+    <div class="about-teams-page">
       
       <section class="hero-section">
         <h1 class="main-title">
-          Volunteer Where It <span class="text-gradient">Matters Most.</span>
+          Volunteer as a <span class="text-gradient">Team.</span>
         </h1>
         <p class="hero-subtitle">
-          Find, track, and amplify your service across Colorado Springs. Turn your passion into provable impact.
+          Organize, motivate, and track your group's collective impact in Colorado Springs—perfect for schools, neighborhood groups, and Greek life.
         </p>
       </section>
 
       <section class="overview-section">
         <div class="overview-card fade-in">
           <p class="mission-text">
-            At <strong>Peak Impact</strong>, we believe that volunteers are the heart of our community. We are dedicated to connecting **passionate individuals** with organizations that need their unique help. Find meaningful volunteer opportunities that align with your interests and schedule.
+            <strong>Peak Impact</strong> provides the ultimate toolset for any organized group looking to make a difference. We simplify everything from event sign-ups to <strong>collective hour logging</strong>, allowing team leaders to effortlessly manage contributions and motivate members toward shared civic goals.
           </p>
         </div>
       </section>
 
       <section class="features-section">
-        <h2 class="section-title">Your Service, Simplified</h2>
+        <h2 class="section-title">Teamwork, Turbocharged</h2>
         
         <div class="features-grid">
           
           <div class="feature-card fade-in delay-1">
-            <div class="f-icon bg-green"><Icon name="heroicons:globe-alt" /></div>
-            <h3>Discover Local Causes</h3>
-            <p>Easily browse hundreds of opportunities—from one-hour cleanups to long-term mentorship—happening in your neighborhood.</p>
+            <div class="f-icon bg-purple"><Icon name="heroicons:user-group" /></div>
+            <h3>Group Roster Management</h3>
+            <p>Invite and manage your members with a unique team code. View real-time individual and group contribution metrics in one dashboard.</p>
           </div>
           
           <div class="feature-card fade-in delay-2">
-            <div class="f-icon bg-blue"><Icon name="heroicons:trophy" /></div>
-            <h3>Gamify Your Dedication</h3>
-            <p>Earn badges, track your contribution streak, and climb the local leaderboards by logging verified hours.</p>
+            <div class="f-icon bg-green"><Icon name="heroicons:star" /></div>
+            <h3>Gamified Competition</h3>
+            <p>Run internal leaderboards for friendly competition or compete against other teams across the city for bragging rights and recognition.</p>
           </div>
           
           <div class="feature-card fade-in delay-3">
-            <div class="f-icon bg-orange"><Icon name="heroicons:identification" /></div>
-            <h3>Build Your Portfolio</h3>
-            <p>Generate verifiable records of your service for scholarships, job applications, or university requirements, instantly.</p>
+            <div class="f-icon bg-blue"><Icon name="heroicons:flag" /></div>
+            <h3>Shared Goal Tracking</h3>
+            <p>Set specific volunteer hour goals (e.g., 500 hours this semester) and track your team's progress collectively and visually.</p>
           </div>
 
         </div>
       </section>
 
       <section class="cta-section">
-        <p class="cta-text">Start making a difference today.</p>
-        <NuxtLink to="/signup" class="btn btn-primary cta-btn">Join the Network</NuxtLink>
+        <p class="cta-text">Unleash your group's collective power.</p>
+        <NuxtLink to="/signup" class="btn btn-primary cta-btn">Create Your Team Account</NuxtLink>
       </section>
 
     </div>
@@ -60,12 +60,13 @@
 
 <style scoped>
 /* --- VARIABLES --- */
-.about-volunteers-page {
+.about-teams-page {
   --bg-dark: #1b273e;
   --bg-darker: #111827;
   --accent-orange: #f59e0b;
-  --accent-green: #10b981; /* Primary color for volunteers */
+  --accent-green: #10b981;
   --accent-blue: #3b82f6;
+  --accent-purple: #a855f7; /* New accent for Teams/Groups */
   --text-white: #f8fafc;
   --text-gray: #94a3b8;
   
@@ -95,8 +96,8 @@
 }
 
 .text-gradient {
-  /* Using Green/Blue gradient for volunteer focus */
-  background: linear-gradient(90deg, var(--accent-green) 0%, var(--accent-orange) 100%);
+  /* Using Purple/Pink gradient for team focus */
+  background: linear-gradient(90deg, var(--accent-blue) 0%, var(--accent-purple));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -109,7 +110,7 @@
   margin: 0 auto;
 }
 
-/* --- 2. OVERVIEW/MISSION --- */
+/* --- 2. OVERVIEW/VALUE --- */
 .overview-section {
   padding: 40px 5% 60px;
   width: 100%;
@@ -166,8 +167,8 @@
 .feature-card:hover { 
   transform: translateY(-5px); 
   box-shadow: 0 15px 30px rgba(0, 0, 0, 0.4); 
-  /* Hover accent using the volunteer color (Green) */
-  border-color: var(--accent-green);
+  /* Hover accent using the team color (Purple) */
+  border-color: var(--accent-purple);
 }
 
 .f-icon { 
@@ -179,9 +180,11 @@
   margin-bottom: 20px; 
   color: white; 
 }
+.bg-purple { background: var(--accent-purple); } /* New background class */
 .bg-green { background: var(--accent-green); }
 .bg-blue { background: var(--accent-blue); }
 .bg-orange { background: var(--accent-orange); }
+
 
 .feature-card h3 { 
   font-size: 1.5rem; 
@@ -211,10 +214,9 @@
 .cta-btn {
   font-size: 1.1rem;
   padding: 12px 30px;
-  /* Use the layout's defined .btn-primary */
 }
 
-/* --- ANIMATIONS (Simple fade-in) --- */
+/* --- ANIMATIONS --- */
 .fade-in { opacity: 0; transform: translateY(20px); animation: fadeInUp 0.8s forwards; }
 .delay-1 { animation-delay: 0.1s; }
 .delay-2 { animation-delay: 0.2s; }

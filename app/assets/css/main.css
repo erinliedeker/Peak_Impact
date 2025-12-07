@@ -2,6 +2,7 @@
 :root {
   /* --- BRAND COLORS --- */
   --color-primary:   #2C5282; /* Pikes Peak Blue (Headers, Active States) */
+  --color-primary-dark: #2A4365; /* Darker Pikes Peak Blue (Hover States) */
   --color-secondary: #2F855A; /* Evergreen (Success, Nature Tags) */
   --color-secondary-dark: #276749; /* Darker Evergreen (Hover States) */
   --color-accent:    #DD6B20; /* Garden Sandstone (Buttons, Alerts) */

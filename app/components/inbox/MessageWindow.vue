@@ -133,14 +133,14 @@ export default defineComponent({
     flex-direction: column;
     height: 100%;
     overflow: hidden;
-    background: #fff;
+    background: var(--color-white);
 }
 
 /* Header */
 .mw-header {
     padding: 12px 16px;
     border-bottom: 1px solid #f0f0f0;
-    background: linear-gradient(180deg, #fafafa, #fff);
+    background: var(--color-white);
 }
 .mw-title {
     font-weight: 600;
@@ -152,7 +152,7 @@ export default defineComponent({
     flex: 1;
     padding: 12px;
     overflow-y: auto;
-    background: #f7f8fb;
+    background: var(--color-bg);
 }
 .messages {
     display: flex;
