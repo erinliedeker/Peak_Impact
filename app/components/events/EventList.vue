@@ -12,7 +12,7 @@
       >
         <img
           class="avatar"
-          :src="event.imageUrl || defaultAvatar"
+          src='~/assets/images/avatar-placeholder.png'
           :alt="`Avatar for ${event.organizationName || 'organization'}`"
         />
 

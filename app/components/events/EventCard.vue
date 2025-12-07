@@ -2,10 +2,11 @@
   <div v-if="item != null" class="event-card">
     <div class="organizer-info">
       <img class="organizer-avatar" 
-      :src="item.imageUrl || defaultAvatar" 
+      src='~/assets/images/avatar-placeholder.png'
       :alt="`Avatar for ${item.organizationName}`"  
       />
-      <a class="organizer-name" href="">{{ item.organizationName}}</a>
+      <a v-if="item.isExternal" class="organizer-name" :href=item.externalUrl>{{ item.organizationName}}</a>
+      <span v-else class="organizer-name">{{ item.organizationName}}</span>
     </div>
     <header class="event-header">
       <h1>{{ item.title }}</h1>
