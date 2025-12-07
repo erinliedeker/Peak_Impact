@@ -5,7 +5,6 @@
     </div>
 
     <nav class="nav-links">
-      
       <NuxtLink to="/feed" class="nav-item" active-class="active">
         <span class="icon">📰</span>
         <span class="label">Feed</span>
@@ -39,8 +38,27 @@
           <span class="label">Org Dashboard</span>
         </NuxtLink>
       </div>
+      <div v-if="auth.isLoggedIn" class="user-info">
+        <div class="avatar-circle">
+          {{ auth.userName ? auth.userName.charAt(0).toUpperCase() : 'U' }}
+        </div>
+        
+        <div class="user-details">
+          <span class="user-name">{{ auth.userName }}</span>
+          <button @click="handleLogout" class="logout-btn">
+            Log Out
+          </button>
+        </div>
+      </div>
+
+      <div v-else>
+        <NuxtLink to="/login" class="login-btn">
+          Log In / Sign Up
+        </NuxtLink>
+      </div>
     </nav>
 
+    
   </aside>
 </template>
 
