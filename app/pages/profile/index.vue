@@ -3,7 +3,7 @@
     
     <div class="profile-grid">
       <div class="col-left">
-        <UserProfileCard />
+        <UserProfileCard :communityInfo="cardCommunityInfo" />
         
         <div class="settings-card">
           <h3>Settings</h3>
@@ -26,8 +26,8 @@
           </div>
 
           <div v-if="myOrgs.length === 0" class="empty-state">
-            <p>You haven't joined any organizations yet.</p>
-            <NuxtLink to="/organizations" class="btn-small">Find a Group</NuxtLink>
+            <p>You aren't following any organizations yet.</p>
+            <NuxtLink to="/organizations" class="btn-small">Find an Organization</NuxtLink>
           </div>
 
           <div v-else class="org-list">
@@ -48,30 +48,132 @@
           </div>
         </div>
 
-      </div>
+        <div class="orgs-section">
+          <div class="section-header">
+            <h3>My Groups</h3>
+            <NuxtLink to="/groups" class="browse-link">Browse All</NuxtLink>
+          </div>
+
+          <div v-if="myGroups.length === 0" class="empty-state">
+            <p>You haven't joined any groups yet.</p>
+            <NuxtLink to="/groups" class="btn-small">Join a Group</NuxtLink>
+          </div>
+
+          <div v-else class="org-list">
+            <div v-for="group in myGroups" :key="group.id" class="org-item">
+              <div class="org-avatar-small" :class="group.type.toLowerCase()">
+                {{ getGroupInitials(group.name) }} 
+              </div>
+              
+              <div class="org-info">
+                <span class="org-name">{{ group.name }}</span>
+                <span class="org-type">{{ formatType(group.type) }}</span> 
+              </div>
+
+              <NuxtLink :to="`/groups/${group.id}`" class="view-btn">
+                View
+              </NuxtLink>
+            </div>
+          </div>
+        </div>
+        </div>
     </div>
 
   </div>
 </template>
 
 <script setup>
+import { computed, onMounted } from 'vue';
 import { useOrgStore } from '../stores/orgs';
+// 🎯 NEW: Import the Groups Store
+import { useGroupsStore } from '../stores/groups'; 
+// 🎯 NEW: Import the Auth Store to get the list of joined IDs
+import { useAuthStore } from '../stores/auth';
 
-// 1. Access the store
+// Initialize Stores
 const orgStore = useOrgStore();
+// 🎯 NEW: Initialize Groups Store and Auth Store
+const groupsStore = useGroupsStore();
+const authStore = useAuthStore();
 
-// 2. Fetch data if missing
+
+// --- Data Fetching ---
+
 onMounted(() => {
+  // 1. Fetch Organizations
   if (orgStore.allOrganizations.length === 0) {
     orgStore.fetchOrganizations();
   }
+  // 🎯 2. Fetch Groups (If needed, check if allNeighborhoodGroups is empty)
+  if (groupsStore.allNeighborhoodGroups.length === 0) {
+    groupsStore.fetchNeighborhoodGroups();
+  }
 });
 
-// 3. Get the list of followed orgs using the Store Getter
+
+// --- Computed Properties ---
+
+// 1. Existing: Followed Organizations
 const myOrgs = computed(() => orgStore.followedOrgsList);
 
-// Helper for display
+// 🎯 NEW: Joined Groups
+const myGroups = computed(() => {
+  // Get the list of IDs from the User's profile
+  const joinedGroupIds = authStore.profile?.joinedGroups || [];
+  
+  // Filter the groups store's master list
+  return groupsStore.allNeighborhoodGroups.filter(group => 
+    joinedGroupIds.includes(String(group.id))
+  );
+});
+
+const cardCommunityInfo = computed(() => {
+    // 1. Prioritize a Group
+    if (myGroups.value.length > 0) {
+        const group = myGroups.value[0];
+        return {
+            name: group.name,
+            link: `/groups/${group.id}`,
+            label: 'Group',
+            exists: true
+        };
+    }
+    
+    // 2. Fallback to an Organization (Optional)
+    if (myOrgs.value.length > 0) {
+        const org = myOrgs.value[0];
+        return {
+            name: org.name,
+            link: `/organizations/${org.id}`,
+            label: formatType(org.type),
+            exists: true
+        };
+    }
+
+    // 3. Fallback message (Replaces "No Neighborhood Selected")
+    return {
+        name: 'Join a Group',
+        link: '/groups',
+        label: 'Community Focus',
+        exists: false
+    };
+});
+
+
+// --- Helper Functions ---
+
 const formatType = (type) => type.replace(/([A-Z])/g, ' $1').trim();
+
+// 🎯 NEW: Helper for Group Initials (Reusing the logic from before)
+function getGroupInitials(name) {
+    if (!name) return '??';
+    return name
+        .split(/\s+/)
+        .map(word => word.charAt(0))
+        .join('')
+        .toUpperCase()
+        .substring(0,2); // Keep it to 2 characters for the small avatar
+}
 </script>
 
 <style scoped>
