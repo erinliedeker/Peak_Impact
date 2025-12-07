@@ -28,7 +28,8 @@ export interface ConnectEvent {
     location: GeoLocation | string; 
     
     date: string;
-    time: string;
+    start: string | null;
+    end: string | null
     
     // You might want to allow 'string' here if Mobilize categories 
     // don't match your hardcoded union types exactly.

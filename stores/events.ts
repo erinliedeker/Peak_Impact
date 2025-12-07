@@ -79,7 +79,8 @@ export const useEventsStore = defineStore('events', {
                                 location: mEvent.location?.venue || 'Virtual/Online',
                                 
                                 date: startTime.toISOString(),
-                                time: startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                                start: startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                                end: null,
                                 
                                 // Flag as external
                                 isExternal: true,

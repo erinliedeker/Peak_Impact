@@ -64,7 +64,8 @@ const mapDocToEvent = (docSnap: QueryDocumentSnapshot<DocumentData>): ConnectEve
         location: mapLocation, 
         
         date: data.date || '',
-        time: data.time || '',
+        start: data.start,
+        end: data.end,
         
         category: (data.category as ConnectEvent['category']) || 'Social', 
         

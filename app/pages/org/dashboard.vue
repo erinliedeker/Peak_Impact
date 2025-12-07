@@ -58,11 +58,11 @@
                 <div class="live-meta">
                   <span>
                     <Icon name="heroicons:clock" class="icon-sm" /> 
-                    {{ event.time }}
+                    {{ event.start }}
                   </span>
                   <span>
-                    <Icon name="heroicons:map-pin" class="icon-sm" /> 
-                    {{ event.location.lat ? 'Location Set' : 'No Location' }}
+                    <Icon name="heroicons:clock" class="icon-sm" /> 
+                    {{ event.end }}
                   </span>
                   <span>
                     <Icon name="heroicons:users" class="icon-sm" /> 
@@ -126,8 +126,12 @@
                     <input v-model="eventForm.date" required type="date" />
                   </div>
                   <div class="form-group half">
-                    <label>Time</label>
-                    <input v-model="eventForm.time" required type="time" step="60" /> 
+                    <label>Start Time</label>
+                    <input v-model="eventForm.start" required type="time" step="60" /> 
+                  </div>
+                  <div class="form-group half">
+                    <label>End Time</label>
+                    <input v-model="eventForm.end" required type="time" step="60" /> 
                   </div>
                 </div>
 
@@ -206,7 +210,9 @@
                 </div>
                 <div class="date-badge">
                   <span>{{ event.date }}</span>
-                  <small>{{ event.time }}</small>
+                  <small>{{ event.start }}</small>
+                  <small>{{ event.end }}</small>
+
                 </div>
               </div>
               
@@ -364,12 +370,14 @@ const INITIAL_FORM_STATE: EventFormState = {
   title: '',
   description: '',
   date: '',
-  time: '',
+  start: '',
+  end: '',
   location: { lat: 38.8339, lng: -104.8214 },
   category: 'Social',
   volunteersNeeded: 5,
   isMicroProject: false,
   suppliesNeeded: [],
+  createdAt: Date(),
 }
 
 const eventForm = reactive<EventFormState>({ ...INITIAL_FORM_STATE })
@@ -465,8 +473,8 @@ function startEdit(event: ConnectEvent) {
     title: event.title,
     description: event.description,
     date: event.date,
-    time: event.time,
-    location: { ...event.location },
+    start: event.start,
+    end: event.end,
     category: event.category,
     volunteersNeeded: event.volunteersNeeded,
     isMicroProject: event.isMicroProject,
@@ -513,25 +521,25 @@ async function handleCreateEvent() {
 }
 
 async function handleUpdateEvent() {
-  if (!editingEventId.value) return
-  isSubmitting.value = true
-  formError.value = null
+  // if (!editingEventId.value) return
+  // isSubmitting.value = true
+  // formError.value = null
 
-  try {
-    const payload = {
-      ...eventForm,
-      id: editingEventId.value
-    }
-    await eventStore.updateEvent(payload)
-    showCreateForm.value = false
-    resetForm()
-    alert('Event Updated Successfully!')
-  } catch (e: any) {
-    console.error(e)
-    formError.value = e.message || 'Failed to update event.'
-  } finally {
-    isSubmitting.value = false
-  }
+  // try {
+  //   const payload = {
+  //     ...eventForm,
+  //     id: editingEventId.value
+  //   }
+  //   await eventStore.updateEvent(payload)
+  //   showCreateForm.value = false
+  //   resetForm()
+  //   alert('Event Updated Successfully!')
+  // } catch (e: any) {
+  //   console.error(e)
+  //   formError.value = e.message || 'Failed to update event.'
+  // } finally {
+  //   isSubmitting.value = false
+  // }
 }
 
 watch(profile, (newProfile) => { if (newProfile) loadDashboardData() }, { immediate: true })
