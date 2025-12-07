@@ -74,7 +74,7 @@ const pageTitle = computed(() => {
 // Logout Logic
 const handleLogout = () => {
   auth.logout();
-  router.push('/login');
+  router.push('/');
 };
 
 // Close dropdowns when clicking outside
@@ -128,7 +128,7 @@ onUnmounted(() => document.removeEventListener('click', closeDropdowns));
   position: absolute;
   top: 0;
   right: 0;
-  background: #e53e3e;
+  background: var(--color-accent);
   color: white;
   font-size: 0.65rem;
   padding: 2px 5px;
