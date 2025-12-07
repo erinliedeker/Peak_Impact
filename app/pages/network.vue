@@ -231,6 +231,15 @@ const receivedRequestsQuery = computed(() => friendRequests.getReceivedRequestsQ
 const receivedRequestsDocs = useCollection(receivedRequestsQuery);
 
 onMounted(async () => {
+    // 🎯 NEW LOGIC: Check URL Hash on load
+    const hash = window.location.hash.substring(1); // Removes the '#'
+    if (hash === 'groups') {
+        activeTab.value = 'groups';
+    } else {
+        // If hash is missing or unknown, default to 'friends'
+        activeTab.value = 'friends'; 
+    }
+
   await Promise.all([
     loadPeople(),
     loadReceivedRequests(),

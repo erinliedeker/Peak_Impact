@@ -56,7 +56,7 @@
 
           <div v-if="myGroups.length === 0" class="empty-state">
             <p>You haven't joined any groups yet.</p>
-            <NuxtLink to="/groups" class="btn-small">Join a Group</NuxtLink>
+            <NuxtLink to="/network#groups" class="btn-small">Join a Group</NuxtLink>
           </div>
 
           <div v-else class="org-list">
