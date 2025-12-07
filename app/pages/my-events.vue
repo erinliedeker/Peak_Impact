@@ -223,6 +223,7 @@ function goToEventPage(ev) {
 .days-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
 .day-cell {
   min-height: 96px;
+  min-width: 75px;
   background: #fafafa;
   padding: 8px;
   border-radius: 6px;

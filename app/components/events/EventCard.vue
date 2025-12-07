@@ -13,14 +13,17 @@
     </header>
     
     <div class="action-buttons">
+      <a v-if="item.isExternal" class="btn primary" :href="item.externalUrl">Sign Up
+        <UIcon name="i-lucide-arrow-up-right" size="1rem" />
+      </a>
       <button 
+      v-else
       class="btn primary" 
       @click="handleSignUp"
       :disabled="buttonState.disabled"
     >
       {{ buttonState.text }}
     </button>
-
       <button class="btn secondary">Share</button>
     </div>
 
@@ -139,6 +142,7 @@ async function handleSignUp() {
   border-bottom: var(--color-border) 1px solid;
 }
 .btn{
+  height: 40px;
   padding: 8px 16px;
   border-radius: 6px;
   margin-right: 8px;
