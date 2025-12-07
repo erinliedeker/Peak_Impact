@@ -3,8 +3,8 @@
     
     <div class="avatar-section">
       <div class="avatar-wrapper">
-        <img v-if="localUser.photoUrl" :src="localUser.photoUrl" alt="Profile" class="avatar-img" />
-        <div v-else class="avatar-placeholder">{{ initials }}</div>
+        <!-- <img v-if="localUser.photoUrl" :src="localUser.photoUrl" alt="Profile" class="avatar-img" /> -->
+        <div class="avatar-placeholder">{{ initials }}</div>
 
         <label class="upload-btn">
           <span>📷</span>
@@ -58,42 +58,71 @@
     </div>
   </div>
 </template>
-
 <script setup>
+import { ref, computed, watch } from 'vue';
 import { useAuthStore } from '../stores/auth';
 
 const auth = useAuthStore();
 const isEditing = ref(false);
 
-// Create a local copy of user data so we can edit it without breaking the store immediately
-const localUser = reactive({
-  name: auth.userName,
-  email: auth.profile?.email || 'user@example.com',
-  userType: auth.profile?.userType || 'Resident',
-  neighborhood: 'Old North End', // Mock default
-  photoUrl: null // null triggers the placeholder
+// 1. Computed property for the source user data (directly from the store)
+// This will be null or the actual profile.
+const sourceUser = computed(() => auth.profile);
+
+// 2. Local state for editing: initialized from sourceUser and watched for updates
+// This holds the data currently being edited.
+const localUser = ref({});
+
+// 3. Status Check: Only show profile if we have a profile object AND the auth is initialized.
+const isProfileReady = computed(() => auth.isAuthInitialized && !!auth.profile);
+
+// 4. Watch for changes in the source user (i.e., successful profile fetch) 
+// and initialize/update the local state IF we are not currently editing.
+watch(sourceUser, (newProfile) => {
+  if (newProfile && !isEditing.value) {
+    // Deep copy the profile data for local editing
+    localUser.value = { ...newProfile }; 
+  }
+}, { immediate: true, deep: true });
+
+
+// Computed initials, safely accessing the name from localUser
+const initials = computed(() => {
+  const name = localUser.value.name;
+  return name ? name.split(' ').map(n => n[0]).join('').substring(0, 2) : '?';
 });
 
-const initials = computed(() => localUser.name.split(' ').map(n => n[0]).join('').substring(0, 2));
-
-// Simulate File Upload
+// Simulate File Upload (using localUser.value)
 const handleFileUpload = (event) => {
   const file = event.target.files[0];
   if (file) {
-    // Create a fake local URL for preview
-    localUser.photoUrl = URL.createObjectURL(file);
+    // For local preview
+    localUser.value.photoUrl = URL.createObjectURL(file);
     alert("Photo updated! (This is local only for now)");
   }
 };
 
 const saveChanges = () => {
-  // TODO: Call API to update profile
-  auth.profile.name = localUser.name; // Update store locally
+  if (!auth.isLoggedIn || !auth.profile) {
+    alert('Cannot save changes: Not logged in or profile unavailable.');
+    isEditing.value = false;
+    return;
+  }
+
+  // TODO: Implement auth.updateProfile() action here.
+  
+  // For demonstration: sync changes back to the store (assuming Pinia action does this)
+  if (auth.profile) {
+    auth.profile.name = localUser.value.name;
+    auth.profile.neighborhood = localUser.value.neighborhood;
+  }
+  
   isEditing.value = false;
 };
 
 const cancelEdit = () => {
-  localUser.name = auth.userName; // Revert
+  // Revert localUser back to the current state of sourceUser
+  localUser.value = { ...sourceUser.value }; 
   isEditing.value = false;
 };
 </script>

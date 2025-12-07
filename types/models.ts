@@ -28,35 +28,16 @@ export interface Event {
 }
 
 export const globalCategories = [
-  "Animal Welfare & Rescue",
-  "Arts & Culture Preservation",
-  "Cancer Research & Support",
-  "Children's Education & Literacy",
-  "Civil Rights & Advocacy",
-  "Climate Change Mitigation",
-  "Community Development & Planning",
-  "Disability Rights & Support",
-  "Disaster Relief & Preparedness",
-  "Elder Care & Senior Services",
-  "Environmental Conservation & Cleanup",
-  "Food Security & Hunger Relief",
-  "Healthcare Access & Wellness",
-  "Homelessness & Housing Support",
-  "Immigrant & Refugee Aid",
-  "Job Training & Workforce Development",
-  "LGBTQ+ Rights & Support",
-  "Mental Health Awareness",
-  "Natural Disaster Relief",
-  "Open Source Software Development",
-  "Park & Trail Maintenance",
-  "Political & Voter Registration",
-  "Poverty Reduction",
-  "Recreational Sports Coaching",
-  "Recycling & Waste Reduction",
-  "Science, Technology, Engineering, & Math (STEM) Education",
-  "Veterans Support",
-  "Wildlife Protection",
-  "Youth Mentorship & Development"
+  "Animal Welfare",
+  "Arts & Culture",
+  "Community & Economic Development",
+  "Crisis & Disaster Relief",
+  "Education & Youth",
+  "Environment & Sustainability",
+  "Health & Wellness",
+  "Homelessness & Food Security",
+  "Human Rights & Advocacy",
+  "Veterans & Senior Support"
 ]
 
 /**

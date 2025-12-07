@@ -58,7 +58,7 @@
         <label for="age">Age:</label>
         <input type="number" id="age" v-model="age" required min="18" />
       </div>
-      
+
       <div class="form-group">
         <label for="password">Password:</label>
         <input type="password" id="password" v-model="password" required minlength="6" />
@@ -68,6 +68,30 @@
         <label for="confirmPassword">Confirm Password:</label>
         <input type="password" id="confirmPassword" v-model="confirmPassword" required />
       </div>
+
+      <div class="form-group interest-section">
+        <label>
+          {{ accountType === 'organization' ? 'Organization Causes/Interests:' : 'Your Interests:' }}
+          <span class="sub-label">
+            {{ accountType === 'organization' ? '(Helps volunteers find you)' : '(Customizes your feed)' }}
+          </span>
+        </label>
+        
+        <div class="interests-container">
+          <button 
+            type="button"
+            v-for="interest in globalCategories" 
+            :key="interest"
+            class="interest-chip"
+            :class="{ 'selected': selectedInterests.includes(interest) }"
+            @click="toggleInterest(interest)"
+          >
+            {{ interest }}
+          </button>
+        </div>
+        <small v-if="selectedInterests.length === 0" class="hint-text">Please select at least one interest.</small>
+      </div>
+      
       
       <button type="submit" :disabled="isLoading" class="submit-btn">
         {{ isLoading ? 'Creating account...' : (accountType === 'organization' ? 'Register Organization' : 'Sign Up') }}
@@ -106,7 +130,8 @@
 <script setup>
 import { ref } from 'vue'
 import { createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup } from 'firebase/auth'
-import { doc, setDoc, getDoc, addDoc, collection } from 'firebase/firestore' // Added addDoc/collection
+import { doc, setDoc, getDoc, addDoc, collection } from 'firebase/firestore' 
+import { globalCategories } from '~~/types/models'
 
 definePageMeta({
   layout: false 
@@ -117,19 +142,31 @@ const db = useFirestore()
 const router = useRouter()
 
 // Form State
-const accountType = ref('individual') // 'individual' | 'organization'
+const accountType = ref('individual') 
 const name = ref('') 
 const email = ref('')
 const age = ref('')
 const password = ref('')
 const confirmPassword = ref('')
 
+// --- 🌟 ADDED: Interest Logic 🌟 ---
+const selectedInterests = ref([])
+
+function toggleInterest(interest) {
+  if (selectedInterests.value.includes(interest)) {
+    selectedInterests.value = selectedInterests.value.filter(i => i !== interest)
+  } else {
+    selectedInterests.value.push(interest)
+  }
+}
+// -----------------------------------
+
 // Org Specific State
 const ein = ref('')
 const orgName = ref('')
 const isLookingUp = ref(false)
 const lookupMessage = ref('')
-const lookupStatus = ref('') // 'success' or 'error'
+const lookupStatus = ref('') 
 
 const isLoading = ref(false)
 const error = ref(null)
@@ -137,12 +174,10 @@ const error = ref(null)
 // --- Helper: Lookup Org via ProPublica Proxy ---
 async function lookupOrgByEin() {
   if (!ein.value) return
-  
   isLookingUp.value = true
   lookupMessage.value = ''
   
   try {
-    // We use the search endpoint, treating the EIN as the query "q"
     const { data } = await useFetch('/api/propublica/organizations', {
       query: { q: ein.value }
     })
@@ -150,10 +185,8 @@ async function lookupOrgByEin() {
     const response = data.value
     
     if (response && response.organizations && response.organizations.length > 0) {
-      // Success: Grab the first result
       const org = response.organizations[0]
-      orgName.value = org.name // Auto-fill the name
-      
+      orgName.value = org.name 
       lookupMessage.value = 'Organization found!'
       lookupStatus.value = 'success'
     } else {
@@ -169,9 +202,57 @@ async function lookupOrgByEin() {
   }
 }
 
+/**
+ * Creates the user profile and (if applicable) the organization document in Firestore.
+ * @param {object} user - The Firebase Auth User object.
+ * @param {string} userType - 'Volunteer' or 'OrgAdmin'.
+ * @param {boolean} isOAuth - True if signing up via Google/OAuth.
+ */
+async function createFirestoreProfile(user, userType, isOAuth = false) {
+    // 1. Determine base userData structure
+    const userData = {
+        id: user.uid,
+        name: user.displayName || name.value,
+        email: user.email || email.value,
+        age: isOAuth ? null : parseInt(age.value), // Age might not be available for OAuth signups
+        userType: userType, 
+        createdAt: new Date(),
+        // 2. Save Interests: Interests are shared regardless of signup method
+        interests: accountType.value === 'individual' ? selectedInterests.value : []
+    }
+
+    // 3. If Organization: Create the Org Document
+    if (accountType.value === 'organization') {
+        const orgRef = await addDoc(collection(db, "organizations"), {
+            name: orgName.value,
+            ein: ein.value,
+            admins: [user.uid],
+            type: 'NonProfit',
+            description: `Registered by ${userData.name}`,
+            contactEmail: userData.email,
+            socialLinks: { instagram: null, facebook: null },
+            interests: selectedInterests.value 
+        })
+        
+        userData.organizationId = orgRef.id
+    }
+    
+    // 4. Create/Update User Profile in Firestore
+    await setDoc(doc(db, "users", user.uid), userData, { merge: true }) // Use merge for safety
+
+    // 5. Redirect
+    router.push('/')
+}
+
+// --- UPDATED: handleSignUp (Email/Password) ---
 async function handleSignUp() {
   if (password.value !== confirmPassword.value) {
     error.value = "Passwords do not match."
+    return
+  }
+  
+  if (selectedInterests.value.length === 0) {
+    error.value = "Please select at least one interest."
     return
   }
 
@@ -183,43 +264,14 @@ async function handleSignUp() {
     const userCredential = await createUserWithEmailAndPassword(auth, email.value, password.value)
     const user = userCredential.user
 
-    // 2. Set Display Name
+    // 2. Set Display Name (Must happen before calling profile function)
     await updateProfile(user, { displayName: name.value })
     
     // 3. Determine User Roles & Data
     const userType = accountType.value === 'organization' ? 'OrgAdmin' : 'Volunteer'
     
-    const userData = {
-      name: name.value,
-      email: email.value,
-      age: parseInt(age.value),
-      userType: userType, // Store their role
-      createdAt: new Date()
-    }
-
-    // 4. If Organization: Create the Org Document first
-    if (accountType.value === 'organization') {
-      // Create the organization in the 'organizations' collection
-      // We assume the current user is the first ADMIN of this org
-      const orgRef = await addDoc(collection(db, "organizations"), {
-        name: orgName.value,
-        ein: ein.value,
-        admins: [user.uid], // IMPORTANT: Link user to org
-        type: 'NonProfit', // Default, or could be fetched
-        description: `Registered by ${name.value}`,
-        contactEmail: email.value,
-        socialLinks: { instagram: null, facebook: null }
-      })
-      
-      // Optional: Add the orgId to the user's profile for quick access
-      userData.organizationId = orgRef.id
-    }
-    
-    // 5. Create User Profile in Firestore
-    await setDoc(doc(db, "users", user.uid), userData)
-    
-    // 6. Redirect
-    router.push('/')
+    // 4. Call the centralized persistence function
+    await createFirestoreProfile(user, userType, false)
     
   } catch (err) {
     console.error(err)
@@ -229,8 +281,11 @@ async function handleSignUp() {
   }
 }
 
-// Google Sign-In flow
+// --- UPDATED: handleGoogleSignIn (OAuth) ---
 async function handleGoogleSignIn() {
+  // NOTE: Interests, accountType, and organization details must be set in the form
+  // BEFORE clicking the Google button for this to work correctly for organizations.
+  
   isLoading.value = true
   error.value = null
 
@@ -238,10 +293,14 @@ async function handleGoogleSignIn() {
     const provider = new GoogleAuthProvider()
     const result = await signInWithPopup(auth, provider)
     const user = result.user
+    
+    // Determine the user type based on the currently selected radio button
+    const userType = accountType.value === 'organization' ? 'OrgAdmin' : 'Volunteer'
 
     const userRef = doc(db, 'users', user.uid)
     const snapshot = await getDoc(userRef)
 
+    // Check if user is NEW to the system
     if (!snapshot.exists()) {
       await setDoc(userRef, {
         name: user.displayName || 'New User',
@@ -271,13 +330,11 @@ async function handleGoogleSignIn() {
   max-width: 450px;
   margin: 2rem auto;
   padding: 2rem;
-  /* Optional: Add a subtle card look */
   border: 1px solid #e2e8f0;
   border-radius: 12px;
   background-color: white;
 }
 
-/* Account Type Toggle */
 .account-type-selector {
   display: flex;
   justify-content: center;
@@ -301,7 +358,6 @@ async function handleGoogleSignIn() {
   transform: scale(1.2);
 }
 
-/* EIN Input Group */
 .ein-input-group {
   display: flex;
   gap: 10px;
@@ -321,14 +377,8 @@ async function handleGoogleSignIn() {
   font-size: 0.9em;
 }
 
-.verify-btn:hover {
-  background-color: #4a5568;
-}
-
-.verify-btn:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
+.verify-btn:hover { background-color: #4a5568; }
+.verify-btn:disabled { opacity: 0.7; cursor: not-allowed; }
 
 .org-section {
   background-color: #f7fafc;
@@ -338,11 +388,9 @@ async function handleGoogleSignIn() {
   border: 1px solid #e2e8f0;
 }
 
-/* Status Messages */
 .success { color: #38a169; font-size: 0.85em; }
 .error { color: #e53e3e; font-size: 0.85em; }
 
-/* Existing Styles */
 .form-group { margin-bottom: 15px; }
 .form-group label { display: block; margin-bottom: 5px; font-weight: 500; }
 .form-group input { 
@@ -352,6 +400,52 @@ async function handleGoogleSignIn() {
   border-radius: 6px; 
   box-sizing: border-box;
 }
+
+/* 🌟 NEW STYLES FOR INTEREST CHIPS 🌟 */
+.interest-section {
+  margin-top: 15px;
+  margin-bottom: 20px;
+}
+.sub-label {
+  font-size: 0.85em;
+  color: #718096;
+  font-weight: normal;
+  margin-left: 5px;
+}
+.interests-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+  max-height: 200px; /* Optional: Scroll if list gets huge */
+  overflow-y: auto;
+}
+.interest-chip {
+  background-color: #fff;
+  border: 1px solid #cbd5e0;
+  border-radius: 20px;
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  color: #4a5568;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.interest-chip:hover {
+  border-color: #3182ce;
+  background-color: #ebf8ff;
+}
+.interest-chip.selected {
+  background-color: #3182ce; /* Primary Color */
+  color: white;
+  border-color: #3182ce;
+}
+.hint-text {
+  color: #e53e3e;
+  font-size: 0.8em;
+  margin-top: 5px;
+  display: block;
+}
+/* ------------------------------------- */
 
 .submit-btn {
   width: 100%;
@@ -423,9 +517,5 @@ async function handleGoogleSignIn() {
 }
 
 .google-btn:hover { box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); }
-
-.google-btn:active {
-  transform: translateY(1px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
+.google-btn:active { transform: translateY(1px); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); }
 </style>
