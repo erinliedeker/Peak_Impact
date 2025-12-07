@@ -253,13 +253,14 @@ const filteredFriends = computed(() => {
 const filteredGroups = computed(() => groups.value.filter(g => g.name.toLowerCase().includes(searchQuery.value.toLowerCase())));
 
 const sortedFriends = computed(() => {
-  // Sort following first, then by impact points
-  return [...people.value].sort((a, b) => {
-    const aIsFollowing = friendStatusMap.value[a.id] === 'following' ? 1 : 0;
-    const bIsFollowing = friendStatusMap.value[b.id] === 'following' ? 1 : 0;
-    if (aIsFollowing !== bIsFollowing) return bIsFollowing - aIsFollowing;
-    return (b.impactPoints || 0) - (a.impactPoints || 0);
-  });
+  // Stable leaderboard: sort only by impact points (desc), then name to keep order stable
+  return [...people.value]
+    .sort((a, b) => {
+      const diff = (b.impactPoints || 0) - (a.impactPoints || 0);
+      if (diff !== 0) return diff;
+      return a.name.localeCompare(b.name);
+    })
+    .slice(0, 10); // show top 10 only
 });
 
 function initialsFor(name: string): string {
