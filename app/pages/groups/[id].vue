@@ -21,7 +21,7 @@
           <div class="hero-content">
             <div class="group-identity">
               <div class="group-icon-lg" :style="{ backgroundColor: groupData.themeColor }">
-                {{ groupData.initials }}
+                {{ groupInitials }}
               </div>
               <div>
                  <h1 class="group-title">{{ groupData.name }}</h1>
@@ -47,27 +47,27 @@
 
       <section class="stats-bar">
         <div class="stat-item">
-          <Icon name="heroicons:clock-solid" class="stat-icon text-blue" />
-          <div>
-            <span class="stat-val">{{ groupData.stats.totalHours.toLocaleString() }}</span>
-            <span class="stat-lbl">Total Volunteer Hours</span>
-          </div>
+            <Icon name="heroicons:clock-solid" class="stat-icon text-blue" />
+            <div>
+                <span class="stat-val">{{ groupData.stats?.totalHours.toLocaleString() || '0' }}</span>
+                <span class="stat-lbl">Total Volunteer Hours</span>
+            </div>
         </div>
         <div class="stat-item">
-          <Icon name="heroicons:calendar-days-solid" class="stat-icon text-orange" />
-          <div>
-            <span class="stat-val">{{ groupData.stats.eventsCompleted }}</span>
-            <span class="stat-lbl">Events Completed</span>
-          </div>
+            <Icon name="heroicons:calendar-days-solid" class="stat-icon text-orange" />
+            <div>
+                <span class="stat-val">{{ groupData.stats?.eventsCompleted || '0' }}</span>
+                <span class="stat-lbl">Events Completed</span>
+            </div>
         </div>
-         <div class="stat-item">
-          <Icon name="heroicons:users-solid" class="stat-icon text-green" />
-          <div>
-            <span class="stat-val">{{ groupData.members.length }}</span>
-            <span class="stat-lbl">Active Neighbors</span>
-          </div>
+        <div class="stat-item">
+            <Icon name="heroicons:users-solid" class="stat-icon text-green" />
+            <div>
+                <span class="stat-val">{{ groupData.members?.length || '0' }}</span> 
+                <span class="stat-lbl">Active Neighbors</span>
+            </div>
         </div>
-      </section>
+    </section>
 
       <div class="layout-grid">
         
@@ -100,13 +100,13 @@
 
           <section class="content-card members-card">
             <div class="card-header-row">
-               <h3>{{ groupData.members.length }} Members</h3>
+               <h3>{{ groupData.members?.length }} Members</h3>
                <NuxtLink to="#" class="view-all-link">View all</NuxtLink>
             </div>
             
             <div class="facepile-row">
                <NuxtLink 
-                  v-for="(member, index) in groupData.members.slice(0, 6)" 
+                  v-for="(member, index) in groupData.members?.slice(0, 6)" 
                   :key="member.id"
                   :to="`/volunteers/${member.id}`"
                   class="facepile-avatar"
@@ -114,8 +114,8 @@
                   :title="member.name"
                >
                </NuxtLink>
-               <div v-if="groupData.members.length > 6" class="facepile-remainder">
-                  +{{ groupData.members.length - 6 }}
+               <div v-if="groupData.members?.length > 6" class="facepile-remainder">
+                  +{{ groupData.members?.length - 6 }}
                </div>
             </div>
           </section>
@@ -130,7 +130,7 @@
                 Upcoming Group Events
              </h3>
              
-             <div v-if="groupData.upcomingEvents.length === 0" class="empty-state-sm">
+             <div v-if="groupData.upcomingEvents?.length === 0" class="empty-state-sm">
                 <p>No upcoming events scheduled.</p>
              </div>
 
@@ -188,80 +188,77 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
-// Add imports for Firestore getDoc similar to the volunteer profile if connecting to real DB
+// 1. Import Stores and Types
+import { useGroupsStore } from '~~/stores/groups'; // Adjust path if necessary
+import { useAuthStore } from '~~/stores/auth'; // Adjust path if necessary
+import type { GroupBasecampData as Group } from '~~/types/group'; // Import the interface we defined
 
 const route = useRoute();
 const groupId = route.params.id as string;
 
+// Initialize Stores
+const groupsStore = useGroupsStore();
+const authStore = useAuthStore();
+
 const isLoading = ref(true);
 const error = ref<string | null>(null);
-const groupData = ref<any>(null); // Replace 'any' with a proper Group Interface later
-const isMember = ref(false); // Track if current user is a member
+const groupData = ref<Group | null>(null); // Use the correct Group type
 
-// --- MOCK DATA GENERATOR ---
-// In reality, fetch this from firestore based on groupId
-const generateMockGroup = (id: string) => {
-    const isDowntown = id === '101';
-    return {
-        id: id,
-        name: isDowntown ? 'Downtown District Cleanup Crew' : 'Westside Community Gardeners',
-        initials: isDowntown ? 'DD' : 'WG',
-        location: isDowntown ? 'Downtown Metro Area' : 'Westside Neighborhood',
-        description: 'We are a dedicated group of neighbors committed to keeping our shared spaces clean, safe, and vibrant. We organize monthly cleanups and social gatherings.',
-        bannerUrl: isDowntown 
-            ? 'https://images.unsplash.com/photo-1517457373958-b7bdd4587205?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80' 
-            : 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80',
-        themeColor: isDowntown ? '#3b82f6' : '#10b981',
-        tags: ['Environment', 'Community', 'Social'],
-        stats: {
-            totalHours: isDowntown ? 4520 : 2100,
-            eventsCompleted: isDowntown ? 54 : 28,
-        },
-        members: Array.from({ length: isDowntown ? 342 : 120 }, (_, i) => ({
-            id: `mem_${i}`,
-            name: `Member ${i}`,
-            avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=member${i}_${id}`
-        })),
-        upcomingEvents: [
-            { id: 'e1', title: 'Big Spring Cleanup', date: '2023-11-15', location: 'Central Park', goingCount: 45 },
-            { id: 'e2', title: 'Monthly Planning Meeting', date: '2023-11-28', location: 'Community Center', goingCount: 12 }
-        ],
-        activityFeed: [
-            { 
-                id: 'p1', authorName: 'Sarah Jenkins', authorAvatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=SJ',
-                timeAgo: '2h ago',
-                content: 'Awesome turnout for the impromptu litter pick today! We cleared 15 bags in just an hour.',
-                image: 'https://images.unsplash.com/photo-1618477461853-cf6ed80faba5?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80',
-                likes: 24
-            },
-             { 
-                id: 'p2', authorName: 'Group Automated Bot', authorAvatar: '',
-                timeAgo: '1d ago',
-                content: '🎉 Milestone Reached! The group has collectively passed 4,500 volunteer hours. Keep up the amazing work!',
-                likes: 56
-            }
-        ]
-    };
-};
-
-onMounted(async () => {
-    // Simulate API call
-    setTimeout(() => {
-        groupData.value = generateMockGroup(groupId);
-        isLoading.value = false;
-        // Check if current user is in groupData.members array to set isMember.value
-    }, 800);
+const groupInitials = computed(() => {
+    // ... logic to split groupData.value.name ...
+    return groupData.value?.name.split(/\s+/).map((word: string) => word.charAt(0)).join('').toUpperCase();
 });
 
-function toggleMembership() {
-    isMember.value = !isMember.value;
-    // TODO: API Call to add/remove user from group members subcollection
-    if(isMember.value) alert(`Welcome to ${groupData.value.name}!`);
+// 2. Computed Property for Membership Status
+// This reacts automatically when the user's profile state changes (e.g., after joining)
+const isMember = computed(() => {
+    // We rely on the AuthStore's profile to see if this group's ID is in the joinedGroups array.
+    const joinedIds = authStore.profile?.joinedGroups || [];
+    return joinedIds.includes(groupId);
+});
+
+// 3. Updated Action to Toggle Membership
+async function toggleMembership() {
+    // Show a loading/pending state if needed, or rely on the button itself to show activity
+    try {
+        // Call the store action to handle persistence (API/DB call) and state update in the AuthStore
+        await groupsStore.toggleJoinGroup(groupId);
+    } catch (e) {
+        error.value = 'Failed to update membership status.';
+        console.error("Error joining/leaving group:", e);
+    }
 }
 
-// Helpers
+// 4. Updated Fetch Logic in onMounted
+async function fetchGroupData() {
+    isLoading.value = true;
+    error.value = null;
+    try {
+        // Ensure the groups store has the necessary action to fetch a single group
+        // NOTE: This assumes you have added a getGroupById action to stores/groups.ts
+        const data = await groupsStore.getGroupById(groupId); 
+
+        if (data) {
+            // Because the mock data has additional fields (stats, members, feed) 
+            // that the core Group interface might not, you might need a mapping function here 
+            // in a real app, but for now, we assume Group includes everything.
+            groupData.value = data; 
+        } else {
+            error.value = 'Group not found.';
+        }
+    } catch (e) {
+        error.value = 'Error loading group data.';
+        console.error("Group fetch failed:", e);
+    } finally {
+        isLoading.value = false;
+    }
+}
+
+onMounted(fetchGroupData);
+
+// Helpers (Format date remains the same)
 function formatDate(dateString: string) {
   const d = new Date(dateString);
   return {

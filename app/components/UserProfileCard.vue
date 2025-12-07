@@ -7,7 +7,7 @@
         <div v-else class="avatar-placeholder">{{ initials }}</div>
 
         <label class="upload-btn">
-          <span>📷</span>
+          <Icon name="heroicons:camera" class="icon-white" />
           <input type="file" accept="image/*" @change="handleFileUpload" hidden />
         </label>
       </div>
@@ -35,14 +35,26 @@
         </div>
         
         <div class="details">
+          
           <div class="detail-row">
-            <span class="icon">📧</span> {{ localUser.email }}
+            <Icon name="heroicons:envelope" class="icon" /> {{ localUser.email }}
           </div>
+          
           <div class="detail-row">
-            <span class="icon">🏡</span> {{ localUser.neighborhood || 'No Neighborhood Selected' }}
+            <Icon name="heroicons:map-pin" class="icon" /> 
+            
+            <span class="detail-label">{{ props.communityInfo.label }}:</span>
+            
+            <NuxtLink 
+               :to="props.communityInfo.link" 
+               :class="{'link-style': props.communityInfo.exists, 'text-muted': !props.communityInfo.exists}"
+            >
+               {{ props.communityInfo.name }}
+            </NuxtLink>
           </div>
+          
           <div class="detail-row">
-            <span class="icon">📅</span> Member since March 2025
+            <Icon name="heroicons:calendar" class="icon" /> Member since March 2025
           </div>
         </div>
 
@@ -53,15 +65,6 @@
         <div class="form-group">
           <label>Full Name</label>
           <input v-model="localUser.name" type="text" />
-        </div>
-        <div class="form-group">
-          <label>Neighborhood</label>
-          <select v-model="localUser.neighborhood">
-            <option value="Old North End">Old North End</option>
-            <option value="Briargate">Briargate</option>
-            <option value="Downtown">Downtown</option>
-            <option value="Manitou">Manitou Springs</option>
-          </select>
         </div>
         
         <div class="action-buttons">
@@ -75,6 +78,7 @@
 </template>
 
 <script setup>
+import { computed, ref, reactive, onMounted } from 'vue'; 
 import { useAuthStore } from '../stores/auth';
 import { useFriendRequests } from '~~/composables/useFriendRequests';
 import { getDocs, collection, query, where, getFirestore } from 'firebase/firestore';
@@ -85,7 +89,15 @@ const isEditing = ref(false);
 const followerCount = ref(0);
 const followingCount = ref(0);
 
-// Create a local copy of user data so we can edit it without breaking the store immediately
+// Define the prop passed from the parent ([id].vue)
+const props = defineProps({
+  communityInfo: {
+    type: Object,
+    default: () => ({ name: 'Join a Group', link: '/groups', label: 'Community Focus', exists: false })
+  }
+});
+
+// Create a local copy of user data
 const localUser = reactive({
   name: auth.userName,
   email: auth.profile?.email || 'user@example.com',
@@ -134,7 +146,7 @@ const saveChanges = async () => {
       const { updateDoc, doc } = await import('firebase/firestore');
       await updateDoc(doc(db, 'users', auth.profile.id), {
         name: localUser.name,
-        neighborhoodId: localUser.neighborhood ? parseInt(localUser.neighborhood) : null
+        // Removed neighborhood update logic
       });
       
       // Update auth display name
@@ -214,6 +226,12 @@ const cancelEdit = () => {
   border: 2px solid white;
   font-size: 0.9rem;
 }
+.upload-btn .icon-white {
+    color: white;
+    width: 1em;
+    height: 1em;
+}
+
 
 .info-section {
   padding: 4rem 2rem 2rem 2rem;
@@ -277,6 +295,32 @@ const cancelEdit = () => {
   margin-bottom: 0.75rem;
   font-size: 0.95rem;
 }
+
+.detail-row .icon {
+  /* Style for icons replacing Emojis */
+  color: var(--color-text-sub); 
+  width: 1.25em; 
+  height: 1.25em;
+  margin-right: 5px; 
+}
+
+.detail-row .detail-label {
+  font-weight: 600;
+  color: var(--color-text-main);
+  margin-right: 5px;
+}
+
+.detail-row .link-style {
+  color: var(--color-primary);
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.detail-row .text-muted {
+  color: var(--color-text-sub);
+  font-style: italic;
+}
+
 
 .edit-btn, .save-btn, .cancel-btn {
   width: 100%;

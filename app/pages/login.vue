@@ -81,12 +81,12 @@ const error = ref(null)
 
 // --- NEW: Redirect if already logged in ---
 // If the user visits this page and is already authenticated, send them Home.
-watch(currentUser, (user, prevUser) => {
-  if (user && !prevUser) {
-    router.push('/feed')
-  }
-}, { immediate: true }) // immediate: true checks it as soon as the page loads
-// ------------------------------------------
+// watch(currentUser, (user, prevUser) => {
+//   if (user && !prevUser) {
+//     router.push('/feed')
+//   }
+// }, { immediate: true }) // immediate: true checks it as soon as the page loads
+// // ------------------------------------------
 
 async function handleSignIn() {
   isLoading.value = true

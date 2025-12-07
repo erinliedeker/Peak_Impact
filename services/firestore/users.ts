@@ -11,7 +11,33 @@ import {
     documentId,
 } from 'firebase/firestore';
 
+import { doc, updateDoc } from 'firebase/firestore'; 
+// Assuming 'db' is your initialized Firestore instance
 
+import type { UserProfile } from '~~/types/user';
+
+// ------------------------------------------------------------------
+// 2. MAPPER: Doc -> UserProfile Object
+// ------------------------------------------------------------------
+const mapDocToUser = (docSnap: QueryDocumentSnapshot<DocumentData>): UserProfile => {
+    const data = docSnap.data();
+    
+    return {
+        id: docSnap.id, // In Firestore, the User ID (UID) is typically the document ID
+        name: data.name || 'Unknown Volunteer',
+        email: data.email || 'N/A',
+        organizationId: data.organizationId || null,
+        interests: data.interests || [],
+        userType: data.userType || 'Resident',
+        neighborhoodId: data.neighborhoodId || null,
+        impactPoints: data.impactPoints || 0,
+        joinedGroups: data.joinedGroups || [],
+    } as UserProfile;
+};
+
+// ------------------------------------------------------------------
+// 3. SERVICE: User Retrieval Operations
+// ------------------------------------------------------------------
 export const UserService = {
 
     /**
@@ -41,5 +67,29 @@ export const UserService = {
             console.error("Error fetching users by UIDs:", error);
             return [];
         }
-    }
+    },
+
+    /**
+     *Updates the 'joinedGroups' array on the user's profile document.
+     * This is called by the GroupsStore to maintain the user's profile state 
+     * in the database.
+     * * @param userId The ID of the user whose profile needs updating.
+     * @param newJoinedGroups The complete, new array of group IDs the user has joined.
+     */
+    async updateUserJoinedGroups(userId: string, newJoinedGroups: string[]): Promise<void> {
+        const db = getFirestore(); 
+        // Get a reference to the specific user's document
+        const userRef = doc(db, 'users', userId);
+        
+        // Use updateDoc to specifically set the new value for the joinedGroups field.
+        try {
+            await updateDoc(userRef, {
+                joinedGroups: newJoinedGroups
+            });
+            console.log(`[UserService] Successfully updated joinedGroups for user ${userId}.`);
+        } catch (error) {
+            console.error(`[UserService] Failed to update joinedGroups for user ${userId}:`, error);
+            throw new Error("Database update failed.");
+        }
+    },
 };

@@ -60,3 +60,33 @@ export interface OrgReportData {
   perUserSummaries: PerUserSummary[]
   groupSummaries: GroupSummary[]
 }
+
+/**
+ * Organization summary within a user report
+ */
+export interface UserReportOrgSummary {
+  orgId: string
+  orgName: string
+  totalHours: number
+  totalEvents: number
+  events: Array<{
+    eventId: string
+    eventName: string
+    date: Date
+    hours: number
+  }>
+}
+
+/**
+ * User volunteer report data structure
+ */
+export interface UserReportData {
+  userId: string
+  userName: string
+  email?: string
+  totalImpactScore: number
+  totalVolunteerHours: number
+  totalEventsCompleted: number
+  organizationSummaries: UserReportOrgSummary[]
+  reportGeneratedDate: Date
+}
