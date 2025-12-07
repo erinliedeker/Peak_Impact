@@ -198,12 +198,10 @@ export const useEventsStore = defineStore('events', {
                 const rawAttendance: VolunteerAttendance[] = event.attendees;
                 const volunteerUids = rawAttendance.map(a => a.volunteerId);
 
-                console.log(volunteerUids)
                 
                 // 2. ⭐️ FETCH USER PROFILES using the new service
                 const userProfiles = await UserService.getUsersByUids(volunteerUids); 
 
-                console.log("A", userProfiles)
 
                 // 3. Merge and create the final Attendee list
                 const detailedAttendees: Attendee[] = rawAttendance.map((record: VolunteerAttendance) => { 
