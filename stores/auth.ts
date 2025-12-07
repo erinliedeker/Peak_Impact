@@ -1,6 +1,5 @@
 import { defineStore } from 'pinia';
 import { 
-  getAuth,
   signInWithEmailAndPassword, 
   signOut, 
   updateProfile 
@@ -153,27 +152,24 @@ export const useAuthStore = defineStore('auth', {
      * Signs the user out and optionally redirects.
      */
     async logout(shouldRedirect = true) {
-      const auth = getAuth(); 
+      const auth = useFirebaseAuth();
+      if (!auth) return;
 
       this.loading = true;
 
       try {
         await signOut(auth);
         
-        // Note: The watcher in initializeAuth will handle the state reset (isLoggedIn = false)
-        
         if (shouldRedirect) {
           const router = useRouter();
-          // Force a reload to clear any memory/middleware artifacts
-          // (Optional, but helps with sticky redirect loops)
-           window.location.href = '/'; 
-           // or await router.push('/login');
+          await router.push('/login');
         }
       } catch (err) {
         console.error('[AuthStore] Logout Error:', err);
         this.error = 'Failed to logout safely.';
       } finally {
         this.loading = false;
+        // State reset happens in initializeAuth watcher
       }
     },
 
