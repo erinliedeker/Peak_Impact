@@ -3,6 +3,11 @@
     <h1>Create an Account</h1>
     
     <form @submit.prevent="handleSignUp">
+      
+      <div class="form-group">
+        <label for="name">Full Name:</label>
+        <input type="text" id="name" v-model="name" required />
+      </div>
       <div class="form-group">
         <label for="email">Email:</label>
         <input type="email" id="email" v-model="email" required />
@@ -29,20 +34,31 @@
 
       <p v-if="error" class="error-message">{{ error }}</p>
     </form>
+
+    <div class="auth-footer">
+      <button @click="router.push('/login')" class="link-button">
+        Already have an account? Log In
+      </button>
+      </div>
   </div>
 </template>
 
 <script setup>
 import { ref } from 'vue'
-import { createUserWithEmailAndPassword } from 'firebase/auth'
-import { doc, setDoc } from 'firebase/firestore' // Import Firestore functions
+import { 
+  createUserWithEmailAndPassword, 
+  updateProfile // 👈 Import updateProfile
+} from 'firebase/auth'
+import { doc, setDoc } from 'firebase/firestore'
 
 const auth = useFirebaseAuth()
-const db = useFirestore() // Get the Firestore database instance
+const db = useFirestore()
 const router = useRouter()
 
+// 👇 NEW: Reactive ref for the user's name
+const name = ref('') 
 const email = ref('')
-const age = ref('') // Reactive ref for age
+const age = ref('')
 const password = ref('')
 const confirmPassword = ref('')
 const isLoading = ref(false)
@@ -62,24 +78,51 @@ async function handleSignUp() {
     const userCredential = await createUserWithEmailAndPassword(auth, email.value, password.value)
     const user = userCredential.user
 
-    // 2. Store extra details in Firestore
-    // We create a document inside the 'users' collection with the ID matching the User's UID
+    // 2. Add Name to the Firebase User Profile
+    // This makes the display name available via user.displayName
+    await updateProfile(user, {
+      displayName: name.value
+    })
+    
+    // 3. Store extra details in Firestore (including name)
     await setDoc(doc(db, "users", user.uid), {
+      name: name.value, // 👈 Store name in Firestore document
       email: email.value,
-      age: parseInt(age.value), // Ensure age is stored as a number
+      age: parseInt(age.value),
       createdAt: new Date()
     })
     
-    // 3. Redirect
+    // 4. Redirect
     router.push('/')
     
   } catch (err) {
     console.error(err)
+    // Check if the error is a FirebaseError and provide a mapped message
     error.value = err.message
   } finally {
     isLoading.value = false
   }
 }
 
-// ... styles remain the same
 </script>
+<style scoped>
+.auth-footer {
+  margin-top: 20px;
+  text-align: center;
+}
+
+.link-button {
+  background: none;
+  border: none;
+  color: var(--color-primary); /* Use your primary color */
+  font-weight: 600;
+  cursor: pointer;
+  padding: 10px 0;
+  transition: color 0.2s;
+}
+
+.link-button:hover {
+  color: var(--color-accent); /* Orange on hover */
+  text-decoration: underline;
+}
+</style>

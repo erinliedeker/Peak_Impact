@@ -63,3 +63,7 @@ pnpm-debug.log*
 # OS metadata
 .DS_Store
 Thumbs.db
+
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
