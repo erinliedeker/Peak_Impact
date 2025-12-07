@@ -1,21 +1,23 @@
 <template>
-  <EventSearchBar
-    @search="onSearch"
-    @update:filters="onFiltersUpdate"
-    @clear-filters="onFiltersUpdate({})"
-  />
-  <div class="content-window">
-    <div class="event-list-container">
-      <EventList class="event-list"
-      :events="displayedEvents" 
-      @select="openEvent"
-      />
-    </div>
-    <div class="event-card-container">
-      <EventCard class="event-card"
-        v-if="selectedEvent"
-        :item="selectedEvent"
-      />
+  <div class="events-page">
+    <EventSearchBar
+      @search="onSearch"
+      @update:filters="onFiltersUpdate"
+      @clear-filters="onFiltersUpdate({})"
+    />
+    <div class="content-window">
+      <div class="event-list-container">
+        <EventList class="event-list"
+        :events="displayedEvents" 
+        @select="openEvent"
+        />
+      </div>
+      <div class="event-card-container">
+        <EventCard class="event-card"
+          v-if="selectedEvent"
+          :item="selectedEvent"
+        />
+      </div>
     </div>
   </div>
 
@@ -104,7 +106,8 @@ async function fetchEvents() {
   loading.value = true
   try {
    allEvents.value = await useEventsStore().fetchEvents()
-   displayedEvents.value = allEvents.value.slice()
+   console.log('Fetched events:', allEvents.value);
+   displayedEvents.value = allEvents.value
    if(!selectedEvent.value) {
     openEvent(allEvents.value[0])
    }
@@ -119,11 +122,19 @@ onMounted(fetchEvents)
 
 <style scoped>
 
+.events-page {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
 .content-window {
   display: flex;
   flex-direction: row;
   width: 100%;
   height: 100%;
+  overflow: hidden;
 }
 
 .event-list-container {
