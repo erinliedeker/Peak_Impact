@@ -135,7 +135,6 @@ export const EventService = {
         const snapshot = await getDocs(q);
         return snapshot.docs.map(mapDocToEvent);
     },
-
     async updateAttendees(eventId: string, attendees: VolunteerAttendance[]): Promise<void> {
         const db = getFirestore();
         const eventRef = doc(db, 'events', eventId);
