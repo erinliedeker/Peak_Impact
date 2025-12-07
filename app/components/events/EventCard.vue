@@ -12,7 +12,10 @@
       <h1>{{ item.title }}</h1>
     </header>
     <div class="action-buttons">
-      <button class="btn primary">Sign Up</button>
+      <a v-if="item.isExternal" class="btn primary" :href="item.externalUrl">Sign Up
+        <UIcon name="i-lucide-arrow-up-right" size="1rem" />
+      </a>
+      <button v-else class="btn primary">Sign Up</button>
       <button class="btn secondary">Share</button>
     </div>
     <div class="details">
