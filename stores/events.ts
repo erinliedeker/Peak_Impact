@@ -291,6 +291,11 @@ export const useEventsStore = defineStore('events', {
                     attendees: event.attendees,
                     volunteersSignedUp: event.volunteersSignedUp 
                 });
+
+                // 3. Award impact points for event signup
+                const { useImpactPoints } = await import('../composables/useImpactPoints');
+                const { awardImpactPoints } = useImpactPoints();
+                await awardImpactPoints(1, `Signed up for event: ${event.title}`);
             } catch (err) {
                 console.error("Failed to sign up volunteer", err);
                 // Optional: Revert local state on error
@@ -324,6 +329,16 @@ export const useEventsStore = defineStore('events', {
                     await EventService.updateAttendees(String(eventId), cleanAttendees);
                     
                     console.log("Save confirmed.");
+                    
+                    // 7. Award impact points for completing the event
+                    const checkIn = new Date(record.checkInTime!);
+                    const checkOut = new Date(record.checkOutTime!);
+                    const hoursVolunteered = (checkOut.getTime() - checkIn.getTime()) / 3600000;
+                    const pointsToAward = Math.ceil(hoursVolunteered * 10); // 10 points per hour
+                    
+                    const { useImpactPoints } = await import('../composables/useImpactPoints');
+                    const { awardImpactPoints } = useImpactPoints();
+                    await awardImpactPoints(pointsToAward, `Completed event: ${event.title} (${hoursVolunteered.toFixed(1)} hours)`);
                     
                     // ❌ DO NOT CALL fetchEventAttendees HERE
                     // If you fetch now, you might get old data. Trust the local update.

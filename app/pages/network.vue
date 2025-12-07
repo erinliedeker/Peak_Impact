@@ -96,28 +96,6 @@
       <div class="widget">
         <div class="widget-header">
           <h3>
-            <Icon name="heroicons:sparkles-solid" size="1.1rem" class="text-orange" />
-            Recent Activity
-          </h3>
-        </div>
-        <div class="activity-list">
-          <div v-for="act in activities" :key="act.id" class="activity-item">
-            <div class="avatar-xs">{{ act.initials }}</div>
-            <div class="act-content">
-              <p>
-                <span class="name">{{ act.name }}</span>
-                {{ act.action }}
-                <NuxtLink :to="act.link" class="act-link">{{ act.target }}</NuxtLink>
-              </p>
-              <span class="time">{{ formatActivityTime(act.createdAt) }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="widget">
-        <div class="widget-header">
-          <h3>
             <Icon name="heroicons:chart-bar-solid" size="1.1rem" class="text-orange" />
             Your Circle
           </h3>
@@ -144,9 +122,11 @@
           </h3>
         </div>
         <p>Grow your impact circle.</p>
-        <div class="invite-form">
-          <input type="email" placeholder="name@email.com" />
-          <button><Icon name="heroicons:paper-airplane-solid" size="1rem" /></button>
+        <div class="invite-form" style="display: flex; flex-direction: column; align-items: flex-start; gap: 0.5em;">
+          <button @click="copyReferralLink" class="btn-profile" style="width: 100%;">
+            <Icon name="heroicons:link" size="1rem" style="margin-right: 0.5em;" />
+            Copy Invite Link
+          </button>
         </div>
       </div>
     </aside>
@@ -166,6 +146,26 @@ const searchQuery: Ref<string> = ref('');
 const isLoading: Ref<boolean> = ref(false);
 
 const authStore = useAuthStore();
+
+// Referral link logic
+const referralLink = computed(() => {
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+  const userId = authStore.profile?.id;
+  if (!userId) return '';
+  return `${baseUrl}/signup?ref=${userId}`;
+});
+
+function copyReferralLink() {
+  if (!referralLink.value) return;
+  navigator.clipboard.writeText(referralLink.value)
+    .then(() => {
+      alert('Referral link copied!');
+    })
+    .catch(() => {
+      alert('Failed to copy link.');
+    });
+}
+
 const friendRequests = useFriendRequests();
 
 interface PersonInfo {
