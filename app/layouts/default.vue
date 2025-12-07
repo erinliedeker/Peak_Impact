@@ -47,5 +47,6 @@
   overflow-x: auto;
   box-sizing: border-box;
   min-width: 0;
+  padding: 2rem 0rem;
 }
 </style>

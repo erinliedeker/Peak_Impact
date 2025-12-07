@@ -8,21 +8,38 @@ import {
     query, 
     where, 
     getDocs, 
-    Timestamp,
-    type DocumentData 
+    type DocumentData,
+    type QueryDocumentSnapshot,
+    Timestamp // <-- Ensure Timestamp is imported
 } from 'firebase/firestore';
-import type { ConnectEvent } from '~~/types/event';
+import type { ConnectEvent, GeoLocation } from '~~/types/event'; // <-- GeoLocation must be defined
 
-// Helper to map Firestore Document to ConnectEvent
-const mapDocToEvent = (doc: DocumentData): ConnectEvent => {
-    const data = doc.data();
+const mapDocToEvent = (docSnap: QueryDocumentSnapshot<DocumentData>): ConnectEvent => {
+    const data = docSnap.data();
+
+    console.log(data)
+
+    // 1. Convert the non-serializable Firestore Timestamp to a standardized string
+    const createdAtString = (data.createdAt instanceof Timestamp)
+        ? data.createdAt.toDate().toISOString()
+        : new Date().toISOString();
+        
+    // 2. Safely map the location object
+    const eventLocation: GeoLocation = data.location && typeof data.location.lat === 'number'
+        ? { lat: data.location.lat, lng: data.location.lng }
+        : { lat: 0, lng: 0 }; // Fallback for location
+
+    // 3. Ensure all required fields (including createdAt and attendees) are mapped
     return {
-        id: doc.id,
+        id: docSnap.id, 
         title: data.title || 'Untitled Event',
         description: data.description || '',
         organizationId: data.organizationId || null,
         organizationName: data.organizationName || 'Unknown Organization',
-        location: data.location || { lat: 0, lng: 0 },
+        
+        // 🚨 FIX: Map the data, do not set to null
+        // location: eventLocation, 
+        
         date: data.date || '',
         time: data.time || '',
         category: data.category || 'Social',
@@ -30,7 +47,12 @@ const mapDocToEvent = (doc: DocumentData): ConnectEvent => {
         volunteersSignedUp: data.volunteersSignedUp || 0,
         isMicroProject: data.isMicroProject || false,
         suppliesNeeded: data.suppliesNeeded || [],
-        attendees: data.attendees || [],
+        
+        // 🚨 FIX: Map attendees (assuming attendees is an array of VolunteerAttendance or any[])
+        // attendees: data.attendees || [], 
+        
+        // 🚨 FIX: Map the converted createdAt field
+        createdAt: createdAtString,
     };
 };
 
@@ -62,6 +84,16 @@ export const EventService = {
 
         // Perform the update
         await updateDoc(eventRef, updatePayload);
+    },
+
+    async getAll(): Promise<ConnectEvent[]> {
+        const db = getFirestore();
+        const eventsCollection = collection(db, 'events');
+        
+        // No query filtering needed, just get all documents in the collection
+        const snapshot = await getDocs(eventsCollection);
+        
+        return snapshot.docs.map(mapDocToEvent);
     },
 
     /**
