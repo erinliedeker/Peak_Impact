@@ -1,198 +1,209 @@
 import { defineStore } from 'pinia';
-import {
-  signInWithEmailAndPassword,
-  signOut,
-  updateProfile,
+import { 
+  signInWithEmailAndPassword, 
+  signOut, 
+  updateProfile 
 } from 'firebase/auth';
+import { 
+  doc, 
+  getDoc, 
+  getFirestore 
+} from 'firebase/firestore'; // Added for future Firestore integration
+import type { FirebaseError } from 'firebase/app';
 import type { UserProfile, AuthState } from '../types/user';
 
-// Nuxt composables for Firebase and general utils
-// NOTE: These must be imported from 'nuxt' or auto-imported in a Nuxt context.
-// For simplicity in a store file, you can rely on Nuxt's auto-imports:
-const auth = useFirebaseAuth(); // Gets the Firebase Auth instance
-const nuxtApp = useNuxtApp(); // Used to access $firebase
-const router = useRouter(); // For redirects
+// Define custom error interface for better type safety
+interface StoreError {
+  code?: string;
+  message: string;
+}
 
-// 4. Define and Export the Auth Store
 export const useAuthStore = defineStore('auth', {
-  // --- State: The single source of truth ---
-  state: (): AuthState => {
-    console.log('[Auth Store] Initializing state...');
-    return {
-      // isLoggedIn will be managed by the listener
-      isLoggedIn: false,
-      // authToken will hold the Firebase ID token
-      authToken: null,
-      // profile will hold the custom user data
-      profile: null,
-      loading: false, // For login/logout actions
-      error: null,
-      // New: Tracks if the initial auth check has completed
-      isAuthInitialized: false,
-    };
-  },
+  // ----------------------------------------------------------------
+  // 💾 State
+  // ----------------------------------------------------------------
+  state: (): AuthState => ({
+    isLoggedIn: false,
+    authToken: null,
+    profile: null,
+    loading: false,
+    error: null,
+    isAuthInitialized: false,
+  }),
 
-  // --- Getters: Computed properties for state ---
+  // ----------------------------------------------------------------
+  // 🔍 Getters
+  // ----------------------------------------------------------------
   getters: {
-    isAuthenticated: (state) => {
-      // console.log(`[Auth Store] Getter isAuthenticated: ${state.isLoggedIn}`);
-      return state.isLoggedIn;
-    },
-
-    isOrgAdmin: (state) => state.profile?.userType === 'OrgAdmin',
-
-    userName: (state) => state.profile?.name || 'Guest',
-
-    currentImpactPoints: (state) => state.profile?.impactPoints || 0,
+    isAuthenticated: (state): boolean => state.isLoggedIn,
+    
+    isOrgAdmin: (state): boolean => state.profile?.userType === 'OrgAdmin',
+    
+    userName: (state): string => state.profile?.name || 'Guest',
+    
+    userEmail: (state): string => state.profile?.email || '',
+    
+    currentImpactPoints: (state): number => state.profile?.impactPoints || 0,
   },
 
-  // --- Actions: Methods used to modify the state (and handle API calls) ---
+  // ----------------------------------------------------------------
+  // ⚡ Actions
+  // ----------------------------------------------------------------
   actions: {
     /**
-     * Helper to fetch the custom profile data from Firestore after Firebase login.
-     * @param uid - The Firebase User's UID.
+     * Initializes the Firebase Auth listener.
+     * MUST be called from a Nuxt Plugin (e.g., plugins/auth.ts).
      */
-    async fetchUserProfile(uid: string) {
-      console.log(`[Auth Store] Fetching profile for UID: ${uid}`);
-      
+    initializeAuth() {
+      if (process.server) return; // Ensure this only runs on client
+
+      const firebaseUser = useCurrentUser(); // VueFire composable
+
+      watch(firebaseUser, async (currentUser) => {
+        try {
+          if (currentUser) {
+            // 1. User Logged In
+            this.authToken = await currentUser.getIdToken();
+            this.isLoggedIn = true;
+            
+            // 2. Sync Custom Profile
+            await this.syncUserProfile(currentUser.uid, currentUser.displayName);
+            
+          } else {
+            // 3. User Logged Out
+            this.resetState();
+          }
+        } catch (error) {
+          console.error('[AuthStore] Sync Error:', error);
+          this.error = 'Failed to synchronize user session.';
+        } finally {
+          this.isAuthInitialized = true;
+        }
+      }, { immediate: true });
+    },
+
+    /**
+     * Internal helper to fetch profile from Firestore and keep local state in sync.
+     */
+    async syncUserProfile(uid: string, firebaseDisplayName: string | null) {
       try {
-        // Get Firestore instance from Nuxt plugin
-        const { $db } = nuxtApp;
-        const { doc, getDoc } = await import('firebase/firestore');
-        
-        // Fetch user document from Firestore
-        const userDocRef = doc($db, 'users', uid);
-        const userDocSnap = await getDoc(userDocRef);
-        
-        if (userDocSnap.exists()) {
-          const userData = userDocSnap.data();
-          
-          // Map Firestore data to UserProfile structure
-          const userProfile: UserProfile = {
-            id: userData.id || Date.now(), // Use stored ID or generate one
-            name: userData.name || 'Unknown User',
-            email: userData.email,
-            userType: userData.userType || 'Resident',
-            neighborhoodId: userData.neighborhoodId || null,
-            impactPoints: userData.impactPoints || 0,
-          };
-          
-          this.profile = userProfile;
-          console.log(`[Auth Store] Profile fetched and set for user: ${this.profile.name}`);
-        } else {
-          console.warn(`[Auth Store] No user document found for UID: ${uid}`);
-          // Create a basic profile if document doesn't exist
-          this.profile = {
-            id: Date.now(),
-            name: 'New User',
-            email: auth.currentUser?.email || '',
-            userType: 'Resident',
-            neighborhoodId: null,
-            impactPoints: 0,
-          };
+        await this.fetchUserProfile(uid);
+
+        // Optional: Bi-directional sync (Update Firebase Auth if Firestore has better data)
+        const currentUser = useCurrentUser().value;
+        if (currentUser && this.profile?.name && firebaseDisplayName !== this.profile.name) {
+           await updateProfile(currentUser, { displayName: this.profile.name });
         }
       } catch (error) {
-        console.error(`[Auth Store] Error fetching user profile:`, error);
-        throw error;
+        console.error('[AuthStore] Profile Sync Failed:', error);
+        // Decide logic here: Logout user if profile fails? Or allow degraded mode?
+        // For strict apps: await this.logout(false); 
       }
     },
 
     /**
-     * Initializes the Firebase Auth listener and synchronizes Pinia state.
+     * Fetches user profile from Firestore.
      */
-    initializeAuth() {
-      console.log('[Auth Store] Initializing Firebase Auth listener...');
-      const firebaseUser = useCurrentUser();
+    async fetchUserProfile(uid: string) {
+      this.loading = true;
+      try {
+        const db = getFirestore();
+        const docRef = doc(db, 'users', uid);
+        const docSnap = await getDoc(docRef);
+      
+        if (docSnap.exists()) {
+          this.profile = docSnap.data() as UserProfile;
+          console.log("User logged in: ", docSnap.data())
 
-      // Watch the reactive firebaseUser and update the store's state
-      watch(firebaseUser, async (newUser, oldUser) => {
-        console.log(`[Auth Store: Watch] User status changed. newUser exists: ${!!newUser}`);
-        
-        // 1. Update core login state
-        this.isLoggedIn = !!newUser;
-        this.authToken = newUser ? await newUser.getIdToken() : null;
-        
-        // 2. Handle profile data sync
-        if (newUser) {
-          console.log(`[Auth Store: Watch] User logged in as: ${newUser.email}. Token acquired.`);
-          try {
-            // Fetch the custom profile data
-            await this.fetchUserProfile(newUser.uid); 
-            
-            // Optional: Update Firebase profile
-            if (this.profile?.name && newUser.displayName !== this.profile.name) {
-                console.log(`[Auth Store: Watch] Updating Firebase display name to: ${this.profile.name}`);
-                await updateProfile(newUser, { displayName: this.profile.name });
-            }
-          } catch (e: any) {
-            console.error('[Auth Store: Watch] Failed to fetch user profile:', e);
-            this.error = 'Could not load user profile data.';
-          }
         } else {
-          // User logged out
-          console.log('[Auth Store: Watch] User logged out. Clearing profile.');
-          this.profile = null;
+          throw new Error('User profile document not found.');
         }
 
-        // 3. Mark initialization as complete
-        this.isAuthInitialized = true;
-        console.log('[Auth Store: Watch] Auth initialization complete.');
-      }, { immediate: true }); // Run immediately on setup
+      } catch (error) {
+        throw error; // Let caller handle or bubble up
+      } finally {
+        this.loading = false;
+      }
     },
 
-
     /**
-     * Handles user login via Firebase Email/Password.
+     * Authenticates user with Email and Password.
      */
     async login(email: string, password: string) {
-      console.log(`[Auth Store] Attempting login for email: ${email}`);
+      const auth = useFirebaseAuth(); // Scope: Action-level only
+      if (!auth) throw new Error('Auth instance not ready');
+
       this.loading = true;
       this.error = null;
 
       try {
         await signInWithEmailAndPassword(auth, email, password);
-        console.log(`[Auth Store] Firebase login successful! Watcher will now sync state.`);
-
-      } catch (e: any) {
-        console.error('[Auth Store] Firebase login failed:', e);
-        this.error = e.message || 'An unknown error occurred during login.';
+        // Note: State update happens in initializeAuth watcher
+      } catch (err: any) {
+        const firebaseError = err as FirebaseError;
+        this.error = this.mapAuthError(firebaseError.code);
+        console.error('[AuthStore] Login Error:', firebaseError.code);
       } finally {
         this.loading = false;
-        console.log('[Auth Store] Login process finished.');
       }
     },
 
     /**
-     * Clears the user session via Firebase.
+     * Signs the user out and optionally redirects.
      */
-    async logout() {
-      console.log('[Auth Store] Attempting logout...');
+    async logout(shouldRedirect = true) {
+      const auth = useFirebaseAuth();
+      if (!auth) return;
+
       this.loading = true;
-      this.error = null;
 
       try {
         await signOut(auth);
-        console.log('[Auth Store] Firebase sign out successful! Watcher will now sync state.');
         
-        router.push('/login'); 
-        console.log('[Auth Store] Redirected to /login.');
-
-      } catch (e: any) {
-        console.error('[Auth Store] Firebase logout error:', e);
-        this.error = 'Failed to log out.';
+        if (shouldRedirect) {
+          const router = useRouter();
+          await router.push('/login');
+        }
+      } catch (err) {
+        console.error('[AuthStore] Logout Error:', err);
+        this.error = 'Failed to logout safely.';
       } finally {
         this.loading = false;
-        console.log('[Auth Store] Logout process finished.');
+        // State reset happens in initializeAuth watcher
       }
     },
-    
+
     /**
-     * Checks if a user is authorized for a specific role (useful for middleware/guards).
+     * Resets state to guest mode.
+     */
+    resetState() {
+      this.isLoggedIn = false;
+      this.authToken = null;
+      this.profile = null;
+      this.error = null;
+    },
+
+    /**
+     * Utility to map Firebase error codes to human-readable messages.
+     */
+    mapAuthError(code: string): string {
+      switch (code) {
+        case 'auth/invalid-credential':
+        case 'auth/user-not-found':
+        case 'auth/wrong-password':
+          return 'Invalid email or password.';
+        case 'auth/too-many-requests':
+          return 'Too many attempts. Please try again later.';
+        default:
+          return 'An unexpected error occurred. Please try again.';
+      }
+    },
+
+    /**
+     * Permission check helper.
      */
     hasRole(requiredType: UserProfile['userType']): boolean {
-      const userHasRole = this.profile?.userType === requiredType;
-      console.log(`[Auth Store] Checking role '${requiredType}'. Result: ${userHasRole}`);
-      return userHasRole;
+      return this.profile?.userType === requiredType;
     }
-  },
+  }
 });

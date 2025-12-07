@@ -42,20 +42,29 @@
 
       <p v-if="error" class="error-message">{{ error }}</p>
     </form>
+
+    <div class="auth-footer">
+      <button @click="router.push('/login')" class="link-button">
+        Already have an account? Log In
+      </button>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
-import { doc, setDoc, Firestore } from 'firebase/firestore'
+import { 
+  createUserWithEmailAndPassword, 
+  updateProfile
+} from 'firebase/auth'
+import { doc, setDoc } from 'firebase/firestore'
 
 const auth = useFirebaseAuth()!
 const db = useFirestore()
 const router = useRouter()
 
-const email = ref('')
 const name = ref('')
+const email = ref('')
 const age = ref('')
 const password = ref('')
 const confirmPassword = ref('')
@@ -96,8 +105,7 @@ async function handleSignUp() {
 
     console.log('[Signup] User created successfully:', user.uid)
     
-    // 4. The auth store watcher will automatically sync the user state
-    // Just redirect to home
+    // 4. Redirect to home
     router.push('/')
     
   } catch (err: any) {
@@ -108,3 +116,25 @@ async function handleSignUp() {
   }
 }
 </script>
+
+<style scoped>
+.auth-footer {
+  margin-top: 20px;
+  text-align: center;
+}
+
+.link-button {
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  font-weight: 600;
+  cursor: pointer;
+  padding: 10px 0;
+  transition: color 0.2s;
+}
+
+.link-button:hover {
+  color: var(--color-accent);
+  text-decoration: underline;
+}
+</style>

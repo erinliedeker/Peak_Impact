@@ -21,4 +21,5 @@ export interface AuthState {
   profile: UserProfile | null;
   loading: boolean;
   error: string | null;
+  isAuthInitialized: boolean;
 }
