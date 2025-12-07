@@ -4,13 +4,26 @@
     
     <form @submit.prevent="handleSignUp">
       <div class="form-group">
+        <label for="name">Full Name:</label>
+        <input type="text" id="name" v-model="name" required />
+      </div>
+
+      <div class="form-group">
         <label for="email">Email:</label>
         <input type="email" id="email" v-model="email" required />
       </div>
       
       <div class="form-group">
         <label for="age">Age:</label>
-        <input type="number" id="age" v-model="age" required min="18" />
+        <input type="number" id="age" v-model="age" required min="13" />
+      </div>
+
+      <div class="form-group">
+        <label for="userType">Account Type:</label>
+        <select id="userType" v-model="userType" required>
+          <option value="Resident">Resident</option>
+          <option value="Student">Student</option>
+        </select>
       </div>
       
       <div class="form-group">
@@ -32,21 +45,23 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref } from 'vue'
-import { createUserWithEmailAndPassword } from 'firebase/auth'
-import { doc, setDoc } from 'firebase/firestore' // Import Firestore functions
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
+import { doc, setDoc, Firestore } from 'firebase/firestore'
 
-const auth = useFirebaseAuth()
-const db = useFirestore() // Get the Firestore database instance
+const auth = useFirebaseAuth()!
+const db = useFirestore()
 const router = useRouter()
 
 const email = ref('')
-const age = ref('') // Reactive ref for age
+const name = ref('')
+const age = ref('')
 const password = ref('')
 const confirmPassword = ref('')
+const userType = ref<'Resident' | 'Student'>('Resident')
 const isLoading = ref(false)
-const error = ref(null)
+const error = ref<string | null>(null)
 
 async function handleSignUp() {
   if (password.value !== confirmPassword.value) {
@@ -58,28 +73,38 @@ async function handleSignUp() {
   error.value = null
 
   try {
-    // 1. Create User in Authentication
+    // 1. Create User in Firebase Authentication
     const userCredential = await createUserWithEmailAndPassword(auth, email.value, password.value)
     const user = userCredential.user
 
-    // 2. Store extra details in Firestore
-    // We create a document inside the 'users' collection with the ID matching the User's UID
-    await setDoc(doc(db, "users", user.uid), {
-      email: email.value,
-      age: parseInt(age.value), // Ensure age is stored as a number
-      createdAt: new Date()
+    // 2. Update Firebase Auth profile with display name
+    await updateProfile(user, {
+      displayName: name.value
     })
+
+    // 3. Store user profile in Firestore
+    await setDoc(doc(db, "users", user.uid), {
+      name: name.value,
+      email: email.value,
+      userType: userType.value,
+      neighborhoodId: null,
+      impactPoints: 0,
+      age: parseInt(age.value),
+      createdAt: new Date(),
+      uid: user.uid
+    })
+
+    console.log('[Signup] User created successfully:', user.uid)
     
-    // 3. Redirect
+    // 4. The auth store watcher will automatically sync the user state
+    // Just redirect to home
     router.push('/')
     
-  } catch (err) {
-    console.error(err)
-    error.value = err.message
+  } catch (err: any) {
+    console.error('[Signup] Error:', err)
+    error.value = err.message || 'Failed to create account'
   } finally {
     isLoading.value = false
   }
 }
-
-// ... styles remain the same
 </script>

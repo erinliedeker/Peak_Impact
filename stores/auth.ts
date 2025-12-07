@@ -49,24 +49,52 @@ export const useAuthStore = defineStore('auth', {
   // --- Actions: Methods used to modify the state (and handle API calls) ---
   actions: {
     /**
-     * Helper to fetch the custom profile data from Firestore/API after Firebase login.
+     * Helper to fetch the custom profile data from Firestore after Firebase login.
      * @param uid - The Firebase User's UID.
      */
     async fetchUserProfile(uid: string) {
       console.log(`[Auth Store] Fetching profile for UID: ${uid}`);
       
-      // Simulated custom profile fetch based on UID:
-      const simulatedProfile: UserProfile = {
-          id: 101, // Custom DB ID
-          name: 'Erin L.',
-          email: 'erin.l@example.com', // Firebase User data
-          userType: (uid.includes('org')) ? 'OrgAdmin' : 'Resident', // Logic based on some criteria
-          neighborhoodId: 5,
-          impactPoints: 450,
-        };
-      
-      this.profile = simulatedProfile;
-      console.log(`[Auth Store] Profile fetched and set for user: ${this.profile.name}`);
+      try {
+        // Get Firestore instance from Nuxt plugin
+        const { $db } = nuxtApp;
+        const { doc, getDoc } = await import('firebase/firestore');
+        
+        // Fetch user document from Firestore
+        const userDocRef = doc($db, 'users', uid);
+        const userDocSnap = await getDoc(userDocRef);
+        
+        if (userDocSnap.exists()) {
+          const userData = userDocSnap.data();
+          
+          // Map Firestore data to UserProfile structure
+          const userProfile: UserProfile = {
+            id: userData.id || Date.now(), // Use stored ID or generate one
+            name: userData.name || 'Unknown User',
+            email: userData.email,
+            userType: userData.userType || 'Resident',
+            neighborhoodId: userData.neighborhoodId || null,
+            impactPoints: userData.impactPoints || 0,
+          };
+          
+          this.profile = userProfile;
+          console.log(`[Auth Store] Profile fetched and set for user: ${this.profile.name}`);
+        } else {
+          console.warn(`[Auth Store] No user document found for UID: ${uid}`);
+          // Create a basic profile if document doesn't exist
+          this.profile = {
+            id: Date.now(),
+            name: 'New User',
+            email: auth.currentUser?.email || '',
+            userType: 'Resident',
+            neighborhoodId: null,
+            impactPoints: 0,
+          };
+        }
+      } catch (error) {
+        console.error(`[Auth Store] Error fetching user profile:`, error);
+        throw error;
+      }
     },
 
     /**
