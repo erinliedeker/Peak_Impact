@@ -69,29 +69,22 @@ const router = useRouter();
 // Mock unread count for the Inbox badge
 const unreadCount = 3; 
 
-const handleLogout = () => {
-  auth.logout();
-  router.push('/login');
-};
 </script>
 
 <style scoped>
 /* Sidebar Container */
 .sidebar {
-  top: 0;
-  bottom: 0; /* Anchors to bottom edge */
-  left: 0;
   
-  height: 100dvh;
-  width: 260px;
+  height: 100%;
+  width: 100%;
   display: flex;
   flex-direction: column;
   padding: 1.5rem;
-  padding-bottom: 2rem; /* Safety buffer for the footer */
   background-color: var(--color-white, #ffffff);
   border-right: 1px solid var(--color-border);
   z-index: 50;
   overflow: hidden;
+  box-sizing: border-box;
 }
 
 /* Header & Logo */
@@ -100,11 +93,13 @@ const handleLogout = () => {
   flex-direction: row;
   margin-bottom: 2.5rem;
   padding-left: 0.5rem;
+  gap: 12px;
 }
 
 .logo {
-  width: 30px;
+  width: 60px;
   height:auto;
+  border-radius: 8px;
 }
 
 .logo-text {
@@ -115,11 +110,6 @@ const handleLogout = () => {
   display: flex;
   align-items: center;
   gap: 10px;
-}
-
-.logo-icon {
-  font-size: 1.75rem;
-  color: var(--color-primary);
 }
 
 /* Navigation Links */
