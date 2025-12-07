@@ -1,40 +1,47 @@
 <template>
   <div class="app-container">
     
-    <NavSidebar /> 
+    <div class="sidebar-wrapper">
+      <NavSidebar />
+    </div>
 
     <div class="main-column">
-      
       <Header />
-
       <main class="page-content">
         <slot />
       </main>
-
     </div>
+
   </div>
 </template>
 
 <style scoped>
 .app-container {
-  display: flex;
-  height: 100vh; /* Full viewport height */
-  overflow: hidden; /* Prevent body scroll */
-  background-color: var(--color-bg);
+  display: grid;
+  /* Updated to 309px to match your preferred sidebar width */
+  grid-template-columns: 309px 1fr; 
+  height: 100vh;
+  overflow: hidden;
+  background-color: var(--color-bg); /* Kept your bg color */
+}
+
+.sidebar-wrapper {
+  /* This ensures the wrapper stays 309px and handles its own scrolling */
+  overflow-y: auto;
+  border-right: 1px solid var(--color-border); /* Optional: visual separation */
 }
 
 .main-column {
-  /* This column takes up all remaining space to the right of the sidebar */
-  flex: 1; 
   display: flex;
   flex-direction: column;
-  margin-left: 260px; /* IMPORTANT: Matches sidebar width to prevent overlap */
   height: 100%;
+  overflow: hidden;
+  position: relative;
 }
 
 .page-content {
-  flex: 1; /* Takes up remaining height below Top Bar */
-  overflow-y: auto; /* Allows content to scroll while Sidebar/TopBar stay fixed */
+  flex: 1;
+  overflow-y: auto;
   padding: 2rem;
 }
 </style>
