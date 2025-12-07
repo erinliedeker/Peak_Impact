@@ -100,6 +100,9 @@ export const useAuthStore = defineStore('auth', {
       try {
         await this.fetchUserProfile(uid);
 
+        // Only sync if profile was found
+        if (!this.profile) return;
+
         // Optional: Bi-directional sync (Update Firebase Auth if Firestore has better data)
         const currentUser = useCurrentUser().value;
         if (currentUser && this.profile?.name && firebaseDisplayName !== this.profile.name) {
@@ -131,10 +134,13 @@ export const useAuthStore = defineStore('auth', {
           console.log("User logged in: ", this.profile)
 
         } else {
-          throw new Error('User profile document not found.');
+          // Profile doesn't exist yet - this can happen during signup
+          console.warn('[AuthStore] User profile not found yet for:', uid);
+          this.profile = null;
         }
 
       } catch (error) {
+        console.error('[AuthStore] Failed to fetch profile:', error);
         throw error; // Let caller handle or bubble up
       } finally {
         this.loading = false;
