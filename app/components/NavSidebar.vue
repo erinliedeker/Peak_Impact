@@ -27,6 +27,11 @@
         <span class="label">My Network</span>
       </NuxtLink>
 
+      <NuxtLink to="/friends" class="nav-item" active-class="active">
+        <Icon name="heroicons:user-group-solid" class="icon" />
+        <span class="label">Friends</span>
+      </NuxtLink>
+
       <NuxtLink to="/my-events" class="nav-item" active-class="active">
         <Icon name="heroicons:ticket-solid" class="icon" />
         <span class="label">My Events</span>

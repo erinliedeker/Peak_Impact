@@ -19,6 +19,21 @@
         <h2 class="name">{{ localUser.name }}</h2>
         <span class="user-type badge">{{ localUser.userType }}</span>
         
+        <div class="stats-row">
+          <div class="stat">
+            <strong>{{ auth.currentImpactPoints }}</strong>
+            <span>Impact</span>
+          </div>
+          <div class="stat">
+            <strong>{{ followerCount }}</strong>
+            <span>Followers</span>
+          </div>
+          <div class="stat">
+            <strong>{{ followingCount }}</strong>
+            <span>Following</span>
+          </div>
+        </div>
+        
         <div class="details">
           <div class="detail-row">
             <span class="icon">📧</span> {{ localUser.email }}
@@ -61,20 +76,46 @@
 
 <script setup>
 import { useAuthStore } from '../stores/auth';
+import { useFriendRequests } from '~~/composables/useFriendRequests';
+import { getDocs, collection, query, where, getFirestore } from 'firebase/firestore';
 
 const auth = useAuthStore();
+const friendRequests = useFriendRequests();
 const isEditing = ref(false);
+const followerCount = ref(0);
+const followingCount = ref(0);
 
 // Create a local copy of user data so we can edit it without breaking the store immediately
 const localUser = reactive({
   name: auth.userName,
   email: auth.profile?.email || 'user@example.com',
   userType: auth.profile?.userType || 'Resident',
-  neighborhood: 'Old North End', // Mock default
-  photoUrl: null // null triggers the placeholder
+  neighborhood: auth.profile?.neighborhoodId?.toString() || '',
+  photoUrl: auth.profile?.photoUrl || null
 });
 
 const initials = computed(() => localUser.name.split(' ').map(n => n[0]).join('').substring(0, 2));
+
+// Fetch follower/following counts
+onMounted(async () => {
+  if (auth.profile?.id) {
+    await fetchFriendCounts();
+  }
+});
+
+async function fetchFriendCounts() {
+  if (!auth.profile?.id) return;
+  
+  try {
+    const followers = await friendRequests.getFollowers(auth.profile.id);
+    followerCount.value = followers.length;
+    
+    const following = await friendRequests.getFollowing(auth.profile.id);
+    followingCount.value = following.length;
+  } catch (e) {
+    console.error('Failed to fetch friend counts', e);
+  }
+}
 
 // Simulate File Upload
 const handleFileUpload = (event) => {
@@ -86,10 +127,31 @@ const handleFileUpload = (event) => {
   }
 };
 
-const saveChanges = () => {
-  // TODO: Call API to update profile
-  auth.profile.name = localUser.name; // Update store locally
-  isEditing.value = false;
+const saveChanges = async () => {
+  try {
+    const db = getFirestore();
+    if (auth.profile?.id) {
+      const { updateDoc, doc } = await import('firebase/firestore');
+      await updateDoc(doc(db, 'users', auth.profile.id), {
+        name: localUser.name,
+        neighborhoodId: localUser.neighborhood ? parseInt(localUser.neighborhood) : null
+      });
+      
+      // Update auth display name
+      const currentUser = useCurrentUser().value;
+      if (currentUser) {
+        const { updateProfile } = await import('firebase/auth');
+        await updateProfile(currentUser, { displayName: localUser.name });
+      }
+      
+      // Refresh profile
+      await auth.fetchUserProfile(auth.profile.id);
+      isEditing.value = false;
+    }
+  } catch (e) {
+    console.error('Failed to update profile', e);
+    alert('Failed to save changes');
+  }
 };
 
 const cancelEdit = () => {
@@ -171,6 +233,35 @@ const cancelEdit = () => {
   font-size: 0.8rem;
   font-weight: 700;
   text-transform: uppercase;
+}
+
+.stats-row {
+  display: flex;
+  justify-content: space-around;
+  margin: 1.5rem 0;
+  padding: 1rem 0;
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.stat strong {
+  font-size: 1.5rem;
+  color: var(--color-text-main);
+  font-weight: 700;
+}
+
+.stat span {
+  font-size: 0.85rem;
+  color: var(--color-text-sub);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .details {
